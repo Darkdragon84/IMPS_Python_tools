@@ -7,8 +7,8 @@ class TransferOperator(object):
     def __init__(self, A, B=None):
         self._A = A
         self._B = B or A
-        assert len(self._A) == len(self._B)
-        self._shape = (self._A.shape[0] * self._B.shape[0], self._A.shape[1] * self._B.shape[1])
+        assert self._A.d == self._B.d
+        self._dims = (self._A.dims[0] * self._B.dims[0], self._A.dims[1] * self._B.dims[1])
         self._dtype = numpy.result_type(self._A.dtype, self._B.dtype)
 
     @property
@@ -24,15 +24,15 @@ class TransferOperator(object):
         return self._dtype
 
     @property
-    def shape(self):
-        return self._shape
+    def dims(self):
+        return self._dims
 
     @property
-    def argshapes(self):
-        return (self._B.shape[0], self._A.shape[0]), (self._A.shape[1], self._B.shape[1])
+    def argdims(self):
+        return (self._B.dims[0], self._A.dims[0]), (self._A.dims[1], self._B.dims[1])
 
     def mult_left(self, x=None):
-        m, n = self._B.shape[0], self._A.shape[0]
+        m, n = self._B.dims[0], self._A.dims[0]
 
         y = 0
         if x is None:
@@ -47,7 +47,7 @@ class TransferOperator(object):
         return y
 
     def mult_right(self, x=None):
-        m, n = self._A.shape[1], self._B.shape[1]
+        m, n = self._A.dims[1], self._B.dims[1]
         y = 0
         if x is None:
             assert m == n
@@ -89,18 +89,18 @@ def transop_dominant_eigs(transop, direction, tol=0, v0=None, maxiter=None, ncv=
 
 def transop_eigs(transop, direction, nev, which='LR', tol=0, v0=None, maxiter=None, ncv=None):
 
-    dim = transop.shape[0]
-    assert dim == transop.shape[1]
+    dim = transop.dims[0]
+    assert dim == transop.dims[1]
 
     if direction == 'left':
-        m, n = transop.argshapes[0]
+        m, n = transop.argdims[0]
 
         def matvec(xv):
             x = xv.reshape(m, n)
             y = transop.mult_left(x)
             return y.ravel()
     elif direction == 'right':
-        m, n = transop.argshapes[1]
+        m, n = transop.argdims[1]
 
         def matvec(xv):
             x = xv.reshape(m, n)
