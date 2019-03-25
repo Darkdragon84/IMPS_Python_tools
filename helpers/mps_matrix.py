@@ -3,20 +3,25 @@ import numpy
 
 class MPSMatrix(list):
     def __init__(self, matrices):
-        if not isinstance(matrices, (list, tuple)):
-            raise ValueError("matrices must be list or tuple")
+        assert isinstance(matrices, (list, tuple))
 
         self._d = len(matrices)
         self._shape = matrices[0].shape
+        self._dtype = matrices[0].dtype
+
         for i in range(1, self._d):
-            if matrices[i].shape != self._shape:
-                raise ValueError("matrix {} has wrong shape".format(i))
+            assert matrices[i].shape == self._shape
+            assert matrices[i].dtype == self._dtype
 
         super().__init__(matrices)
 
     @property
     def shape(self):
         return self._shape
+
+    @property
+    def dtype(self):
+        return self._dtype
 
     def to_full_matrix(self, axis):
         return numpy.stack(self, axis)
