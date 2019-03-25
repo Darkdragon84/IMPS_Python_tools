@@ -36,20 +36,20 @@ class MPSMatrix(list):
         return cls(numpy.split(mat, split_inds, axis))
 
     @classmethod
-    def get_random_mps(cls, d, m, n=None):
+    def get_random_mps(cls, d, m, n=None, dtype=numpy.float64):
         n = n or m
-        return cls([numpy.random.randn(m, n) for _ in range(d)])
+        return cls([numpy.random.randn(m, n).astype(dtype) for _ in range(d)])
 
     @classmethod
-    def get_random_left_ortho_mps(cls, d, m, n=None):
+    def get_random_left_ortho_mps(cls, d, m, n=None, dtype=numpy.float64):
         n = n or m
-        q, _ = numpy.linalg.qr(numpy.random.randn(d*m, n))
+        q, _ = numpy.linalg.qr(numpy.random.randn(d*m, n).astype(dtype))
         return cls.from_full_matrix(q, d, 0)
 
     @classmethod
-    def get_random_right_ortho_mps(cls, d, m, n=None):
+    def get_random_right_ortho_mps(cls, d, m, n=None, dtype=numpy.float64):
         n = n or m
-        q, _ = numpy.linalg.qr(numpy.random.randn(d*n, m))
+        q, _ = numpy.linalg.qr(numpy.random.randn(d*n, m).astype(dtype))
         return cls.from_full_matrix(q.T, d, 1)
 
     def mult_right_with_matrix(self, x=None):

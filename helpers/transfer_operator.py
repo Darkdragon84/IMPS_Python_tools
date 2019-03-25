@@ -1,4 +1,6 @@
-from scipy.sparse.linalg import eigs, LinearOperator
+from scipy.sparse.linalg import eigs
+import numpy
+from scipy.sparse.linalg.interface import _CustomLinearOperator
 
 
 class TransferOperator(object):
@@ -7,6 +9,7 @@ class TransferOperator(object):
         self._B = B or A
         assert len(self._A) == len(self._B)
         self._shape = (self._A.shape[0] * self._B.shape[0], self._A.shape[1] * self._B.shape[1])
+        self._dtype = numpy.result_type(self._A.dtype, self._B.dtype)
 
     @property
     def A(self):
@@ -15,6 +18,10 @@ class TransferOperator(object):
     @property
     def B(self):
         return self._B
+
+    @property
+    def dtype(self):
+        return self._dtype
 
     @property
     def shape(self):
@@ -53,30 +60,59 @@ class TransferOperator(object):
 
         return y
 
+    # def aslinearoperator(self, direction):
+    #
+    #     dim = self.shape[0]
+    #     assert dim == self.shape[1]
+    #
+    #     if direction == 'left':
+    #         m, n = self.argshapes[0]
+    #
+    #         def matvec(xv):
+    #             x = xv.reshape(m, n)
+    #             y = self.mult_left(x)
+    #             return y.ravel()
+    #     elif direction == 'right':
+    #         m, n = self.argshapes[1]
+    #
+    #         def matvec(xv):
+    #             x = xv.reshape(m, n)
+    #             y = self.mult_right(x)
+    #             return y.ravel()
+    #     return LinearOperator(shape=(dim, dim), dtype=self.dtype, matvec=matvec)
 
-def eigs_transop(transop, dir, nev, which='LR', tol=0, v0=None, maxiter=None, ncv=None):
+
+def transop_dominant_eigs(transop, direction, tol=0, v0=None, maxiter=None, ncv=None):
+    E, Vm = transop_eigs(transop, direction, 1, 'LR', tol=tol, v0=v0, maxiter=maxiter, ncv=ncv)
+    return numpy.real(E[0]), numpy.real(Vm[0])
+
+
+def transop_eigs(transop, direction, nev, which='LR', tol=0, v0=None, maxiter=None, ncv=None):
 
     dim = transop.shape[0]
     assert dim == transop.shape[1]
 
-    if dir == 'left':
+    if direction == 'left':
         m, n = transop.argshapes[0]
 
         def matvec(xv):
             x = xv.reshape(m, n)
             y = transop.mult_left(x)
             return y.ravel()
-    elif dir == 'right':
+    elif direction == 'right':
         m, n = transop.argshapes[1]
 
         def matvec(xv):
             x = xv.reshape(m, n)
             y = transop.mult_right(x)
             return y.ravel()
+    else:
+        raise ValueError("direction {} not recognized, must be one of ['left', 'right']")
 
     # TODO can we fix the argument complaints?
-    Ax = LinearOperator(shape=(dim, dim), matvec=matvec)
-    E, V = eigs(Ax, nev, which=which, tol=tol, v0=v0, maxiter=maxiter, ncv=ncv)
+    TMop = _CustomLinearOperator(shape=(dim, dim), matvec=matvec, dtype=transop.dtype)
+    # TMop = transop.aslinearoperator(direction)
+    E, V = eigs(TMop, nev, which=which, tol=tol, v0=v0, maxiter=maxiter, ncv=ncv)
 
     Vm = [V[:, i].reshape(m, n) for i in range(nev)]
     return E, Vm
