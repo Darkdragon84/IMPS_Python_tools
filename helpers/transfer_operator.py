@@ -1,6 +1,12 @@
-from scipy.sparse.linalg import eigs, LinearOperator
+import warnings
+
+from scipy.sparse.linalg import eigs, LinearOperator, gmres
 import numpy
 
+from helpers.math_utilities import inf_norm, matrix_dot,add_scalar_times_matrix
+
+DIR_TO_AXIS = {'left': 0,
+               'right': 1}
 
 class TransferOperator(object):
     def __init__(self, A, B=None):
@@ -114,6 +120,71 @@ def transop_eigs(transop, direction, nev, which='LR', tol=0, v0=None, maxiter=No
 
     Vm = V.reshape((-1, m, n))
     return E, Vm
+
+
+def transop_geometric_sum(x, transop, direction, L=None, R=None, reltol=1e-6, x0=None, maxiter=None,
+                          verbose=False, chk=False):
+    axis = DIR_TO_AXIS[direction] if isinstance(direction, str) else direction
+
+    m, n = transop.argdims[axis]
+    assert x.shape == (m, n)
+
+    if chk:
+        ltmp = transop.mult_left(L)
+        rtmp = transop.mult_right(R)
+        ltmp -= numpy.eye(transop.argdims[0]) if L is None else L
+        rtmp -= numpy.eye(transop.argdims[1]) if R is None else R
+
+        lchk = inf_norm(ltmp)
+        rchk = inf_norm(rtmp)
+        if lchk > reltol * (1 if L is None else inf_norm(L)):
+            warnings.warn("L is not a good left dominant eigenmatrix to reltol={:2.4} (lchk={:2.4})".format(reltol,
+                                                                                                            lchk))
+        if rchk > reltol * (1 if R is None else inf_norm(R)):
+            warnings.warn("R is not a good right dominant eigenmatrix to reltol={:2.4} (rchk={:2.4})".format(reltol,
+                                                                                                             rchk))
+    # properly normalize L and R
+    lrnrm = matrix_dot(L, R)
+    if L is not None:
+        L /= lrnrm
+    else:
+        R /= lrnrm
+
+    if x0 is None:
+        # TODO how to generate complex x0
+        x0 = numpy.random.randn(m, n).astype(transop.dtype)
+
+    if direction == 'left':
+        # project out dominante eigenspace
+        # x -= trace(x*R)*L
+        add_scalar_times_matrix(x, L, -matrix_dot(x, R))
+        add_scalar_times_matrix(x0, L, -matrix_dot(x0, R))
+
+        def matvec(xv):
+            xm = xv.reshape(m, n)
+            Txm = transop.mult_left(xm)
+            add_scalar_times_matrix(xm, L, matrix_dot(xm, R))
+            # y = x - [Tm(x) - tr(x*R)*L] = x - Tm(x) + tr(x*R)*L
+            ym = xm - Txm
+            return ym.ravel()
+
+    elif direction == 'right':
+        # project out dominante eigenspace
+        # x -= trace(L*x)*R
+        add_scalar_times_matrix(x, R, -matrix_dot(L, x))
+        add_scalar_times_matrix(x0, R, -matrix_dot(L, x0))
+
+        def matvec(xv):
+            xm = xv.reshape(m, n)
+            Txm = transop.mult_right(xm)
+            add_scalar_times_matrix(xm, R, matrix_dot(L, xm))
+            # y = x - [Tm(x) - tr(L*x)*R] = x - Tm(x) + tr(L*x)*R
+            ym = xm - Txm
+            return ym.ravel()
+    else:
+        raise ValueError("direction {} not recognized, must be one of ['left', 'right']")
+    # gmres
+
 
 
 

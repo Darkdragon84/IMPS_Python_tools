@@ -6,11 +6,11 @@ from helpers.transfer_operator import TransferOperator, transop_dominant_eigs
 
 def main():
     d = 3
-    mA = 100
+    mA = 400
     mB = 80
-    dtype = numpy.complex128
+    # dtype = numpy.complex128
     # dtype = numpy.float64
-    # dtype = numpy.float32
+    dtype = numpy.float32
 
     A = MPSMatrix.get_random_left_ortho_mps(d, mA, dtype=dtype)
     B = MPSMatrix.get_random_right_ortho_mps(d, mB, dtype=dtype)
