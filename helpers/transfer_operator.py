@@ -1,6 +1,5 @@
-from scipy.sparse.linalg import eigs
+from scipy.sparse.linalg import eigs, LinearOperator
 import numpy
-from scipy.sparse.linalg.interface import _CustomLinearOperator
 
 
 class TransferOperator(object):
@@ -109,12 +108,11 @@ def transop_eigs(transop, direction, nev, which='LR', tol=0, v0=None, maxiter=No
     else:
         raise ValueError("direction {} not recognized, must be one of ['left', 'right']")
 
-    # TODO can we fix the argument complaints?
-    TMop = _CustomLinearOperator(shape=(dim, dim), matvec=matvec, dtype=transop.dtype)
-    # TMop = transop.aslinearoperator(direction)
+    # the next two calls are fine, even though PyCharm complains
+    TMop = LinearOperator(shape=(dim, dim), matvec=matvec, dtype=transop.dtype)
     E, V = eigs(TMop, nev, which=which, tol=tol, v0=v0, maxiter=maxiter, ncv=ncv)
 
-    Vm = [V[:, i].reshape(m, n) for i in range(nev)]
+    Vm = V.reshape((-1, m, n))
     return E, Vm
 
 

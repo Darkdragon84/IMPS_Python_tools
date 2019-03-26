@@ -45,9 +45,9 @@ class MPSMatrix(object):
 
     @classmethod
     def from_full_matrix(cls, mat, d, axis):
-        if mat.shape[axis] % d != 0:
-            raise ValueError("shape[{}] (={}) of mat is not divisible by {}".format(axis, mat.shape[axis], d))
-
+        # if mat.shape[axis] % d != 0:
+        #     raise ValueError("shape[{}] (={}) of mat is not divisible by {}".format(axis, mat.shape[axis], d))
+        assert mat.shape[axis] % d == 0
         stride = mat.shape[axis] // d
         split_inds = range(stride, d*stride, stride)
         return cls(numpy.split(mat, split_inds, axis))
