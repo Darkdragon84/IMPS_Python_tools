@@ -8,6 +8,7 @@ from helpers.math_utilities import inf_norm, matrix_dot,add_scalar_times_matrix
 DIR_TO_AXIS = {'left': 0,
                'right': 1}
 
+
 class TransferOperator(object):
     def __init__(self, A, B=None):
         self._A = A
@@ -65,34 +66,36 @@ class TransferOperator(object):
 
         return y
 
-    # def aslinearoperator(self, direction):
-    #
-    #     dim = self.shape[0]
-    #     assert dim == self.shape[1]
-    #
-    #     if direction == 'left':
-    #         m, n = self.argshapes[0]
-    #
-    #         def matvec(xv):
-    #             x = xv.reshape(m, n)
-    #             y = self.mult_left(x)
-    #             return y.ravel()
-    #     elif direction == 'right':
-    #         m, n = self.argshapes[1]
-    #
-    #         def matvec(xv):
-    #             x = xv.reshape(m, n)
-    #             y = self.mult_right(x)
-    #             return y.ravel()
-    #     return LinearOperator(shape=(dim, dim), dtype=self.dtype, matvec=matvec)
+
+def transop_dominant_eigs(transop, direction, tol=0, which='LR', v0=None, maxiter=None, ncv=None):
+    """
+    this function is only meant for non-mixed TM, for which the dominant eigenvalue is guaranteed to be positive real
+    :param transop:
+    :param direction:
+    :param tol:
+    :param which:
+    :param v0:
+    :param maxiter:
+    :param ncv:
+    :return:
+    """
+    assert transop.A == transop.B
+    E, Vm = transop_eigs(transop, direction, 1, which=which, tol=tol, v0=v0, maxiter=maxiter, ncv=ncv)
+
+    V = Vm[0]
+    # make hermitian
+    # due to TM = \sum_i A[i]* \otimes A[i], both V and V' are eigenmatrices (check by transposing EV equation)
+    V += V.conj().T
+
+    # # remove arbitrary complex phase of eigenmatrix (should already be zero from hermitization) and normalize
+    # V /= V.trace()
+
+    # we want the result to be contiguous in memory, so we copy once here
+    V = numpy.real(V).copy()
+    return numpy.real(E[0]), V
 
 
-def transop_dominant_eigs(transop, direction, tol=0, v0=None, maxiter=None, ncv=None):
-    E, Vm = transop_eigs(transop, direction, 1, 'LR', tol=tol, v0=v0, maxiter=maxiter, ncv=ncv)
-    return numpy.real(E[0]), numpy.real(Vm[0])
-
-
-def transop_eigs(transop, direction, nev, which='LR', tol=0, v0=None, maxiter=None, ncv=None):
+def transop_eigs(transop, direction, nev, which='LR', tol=0, v0=None, maxiter=None, ncv=None, sorted=False):
 
     dim = transop.dims[0]
     assert dim == transop.dims[1]
@@ -116,18 +119,28 @@ def transop_eigs(transop, direction, nev, which='LR', tol=0, v0=None, maxiter=No
 
     # the next two calls are fine, even though PyCharm complains
     TMop = LinearOperator(shape=(dim, dim), matvec=matvec, dtype=transop.dtype)
-    E, V = eigs(TMop, nev, which=which, tol=tol, v0=v0, maxiter=maxiter, ncv=ncv)
+    E, Vm = eigs(TMop, nev, which=which, tol=tol, v0=v0, maxiter=maxiter, ncv=ncv)
 
-    Vm = V.reshape((-1, m, n))
-    return E, Vm
+    # V is in fortran order (F_CONTIGUOUS, column major),
+    # so V.T uses same memory, but is in C order (C_CONTIGUOUS, row major)
+    V = Vm.T.reshape((-1, m, n))
+    if sorted:
+        inds = numpy.argsort(numpy.abs(E))[::-1]
+        E = E[inds]
+        V = V[inds]
+    return E, V
 
 
 def transop_geometric_sum(x, transop, direction, L=None, R=None, reltol=1e-6, x0=None, maxiter=None,
                           verbose=False, chk=False):
     axis = DIR_TO_AXIS[direction] if isinstance(direction, str) else direction
 
+    dim = transop.dim[0]
     m, n = transop.argdims[axis]
-    assert x.shape == (m, n)
+
+    assert x.shape == (m, n)  # inhomogeneity must have correct dimensions
+    assert transop.dim[1] == dim  # transop must be square
+    assert dim == m*n  # sanity check for dimensions
 
     if chk:
         ltmp = transop.mult_left(L)
@@ -183,7 +196,11 @@ def transop_geometric_sum(x, transop, direction, L=None, R=None, reltol=1e-6, x0
             return ym.ravel()
     else:
         raise ValueError("direction {} not recognized, must be one of ['left', 'right']")
-    # gmres
+
+    TMop = LinearOperator(shape=(dim, dim), matvec=matvec, dtype=transop.dtype)
+    yv, info = gmres(TMop, x.ravel(), x0=x0.ravel(), tol=reltol, maxiter=maxiter)
+
+
 
 
 
