@@ -85,17 +85,18 @@ def transop_dominant_eigs(transop, direction, tol=0, which='LR', v0=None, maxite
     V = Vm[0]
     # make hermitian
     # due to TM = \sum_i A[i]* \otimes A[i], both V and V' are eigenmatrices (check by transposing EV equation)
+    # this should also remove the arbitrary complex phase, as the diagonal is then real by definition
     V += V.conj().T
 
-    # # remove arbitrary complex phase of eigenmatrix (should already be zero from hermitization) and normalize
-    # V /= V.trace()
+    # remove potential remaining sign of eigenmatrix (should already be zero from hermitization) and normalize
+    V /= V.trace()
 
     # we want the result to be contiguous in memory, so we copy once here
     V = numpy.real(V).copy()
     return numpy.real(E[0]), V
 
 
-def transop_eigs(transop, direction, nev, which='LR', tol=0, v0=None, maxiter=None, ncv=None, sorted=False):
+def transop_eigs(transop, direction, nev, which='LR', tol=0, v0=None, maxiter=None, ncv=None, sort=False):
 
     dim = transop.dims[0]
     assert dim == transop.dims[1]
@@ -124,7 +125,7 @@ def transop_eigs(transop, direction, nev, which='LR', tol=0, v0=None, maxiter=No
     # V is in fortran order (F_CONTIGUOUS, column major),
     # so V.T uses same memory, but is in C order (C_CONTIGUOUS, row major)
     V = Vm.T.reshape((-1, m, n))
-    if sorted:
+    if sort:
         inds = numpy.argsort(numpy.abs(E))[::-1]
         E = E[inds]
         V = V[inds]
@@ -135,18 +136,18 @@ def transop_geometric_sum(x, transop, direction, L=None, R=None, reltol=1e-6, x0
                           verbose=False, chk=False):
     axis = DIR_TO_AXIS[direction] if isinstance(direction, str) else direction
 
-    dim = transop.dim[0]
+    dim = transop.dims[0]
     m, n = transop.argdims[axis]
 
     assert x.shape == (m, n)  # inhomogeneity must have correct dimensions
-    assert transop.dim[1] == dim  # transop must be square
+    assert transop.dims[1] == dim  # transop must be square
     assert dim == m*n  # sanity check for dimensions
 
     if chk:
         ltmp = transop.mult_left(L)
         rtmp = transop.mult_right(R)
-        ltmp -= numpy.eye(transop.argdims[0]) if L is None else L
-        rtmp -= numpy.eye(transop.argdims[1]) if R is None else R
+        ltmp -= numpy.eye(*transop.argdims[0]) if L is None else L
+        rtmp -= numpy.eye(*transop.argdims[1]) if R is None else R
 
         lchk = inf_norm(ltmp)
         rchk = inf_norm(rtmp)
@@ -199,6 +200,11 @@ def transop_geometric_sum(x, transop, direction, L=None, R=None, reltol=1e-6, x0
 
     TMop = LinearOperator(shape=(dim, dim), matvec=matvec, dtype=transop.dtype)
     yv, info = gmres(TMop, x.ravel(), x0=x0.ravel(), tol=reltol, maxiter=maxiter)
+    if info > 0:
+        warnings.warn("gmres: convergence to reltol={} not achieved".format(reltol))
+
+    y = yv.reshape(m, n)
+    return y, info
 
 
 

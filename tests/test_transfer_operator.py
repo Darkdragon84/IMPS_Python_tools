@@ -2,7 +2,7 @@ import numpy
 
 from helpers.math_utilities import inf_norm
 from helpers.mps_matrix import MPSMatrix
-from helpers.transfer_operator import TransferOperator, transop_dominant_eigs
+from helpers.transfer_operator import TransferOperator, transop_dominant_eigs, transop_eigs
 
 
 def main():
@@ -10,8 +10,8 @@ def main():
     mA = 80
     mB = 80
     # dtype = numpy.complex128
-    dtype = numpy.float64
-    # dtype = numpy.float32
+    # dtype = numpy.float64
+    dtype = numpy.float32
 
     A = MPSMatrix.get_random_left_ortho_mps(d, mA, dtype=dtype)
     B = MPSMatrix.get_random_right_ortho_mps(d, mB, dtype=dtype)
@@ -34,13 +34,6 @@ def main():
     print(inf_norm(TMA.mult_right(RA) - eA*RA))
     print(inf_norm(TMB.mult_left(LB) - eB*LB))
 
-    TMAB = TransferOperator(A, B)
-    eAB, LAB = transop_dominant_eigs(TMAB, 'left', which='LM', maxiter=1e4)
-    y = TMAB.mult_left(LAB)
-    print()
-    print("mixed AL BR")
-    print(eAB, inf_norm(y - eAB*LAB))
-
     M = MPSMatrix.get_random_mps(d, mA, dtype=dtype)
     TM = TransferOperator(M)
     eL, LM = transop_dominant_eigs(TM, 'left')
@@ -61,6 +54,22 @@ def main():
 
     print(inf_norm(RM - TransferOperator(M @ RM, M).mult_right()))
     print(inf_norm(LM - TransferOperator(LM @ M, M).mult_left()))
+
+    print()
+    print("mixed AL BR")
+    TMAB = TransferOperator(A, B)
+    eABL, LAB = transop_eigs(TMAB, 'left', nev=4, which='LM', sort=True)
+    eABR, RAB = transop_eigs(TMAB, 'right', nev=4, which='LM', sort=True)
+
+    print("left:")
+    for e, L in zip(eABL, LAB):
+        chk = inf_norm(TMAB.mult_left(L) - e*L)
+        print("|{}|={}: {}".format(e, numpy.abs(e), chk))
+    print("right:")
+    for e, R in zip(eABR, RAB):
+        chk = inf_norm(TMAB.mult_right(R) - e*R)
+        print("|{}|={}: {}".format(e, numpy.abs(e), chk))
+
 
 
 if __name__ == '__main__':
