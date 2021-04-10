@@ -1,5 +1,6 @@
 from collections import defaultdict
 from itertools import product
+from typing import Dict, Tuple
 
 import numpy
 
@@ -37,7 +38,7 @@ class BlockTensor(object):
     def __getitem__(self, qns):
         return self._tensors[qns]
 
-    def __setitem__(self, qns, tensor):
+    def __setitem__(self, qns, tensor: numpy.array):
         assert isinstance(qns, tuple)
         assert len(tensor.shape) == len(qns)
 
@@ -57,7 +58,7 @@ class BlockTensor(object):
             self._qn_to_tensors[ax][qn][qns] = tensor.view()
 
     @classmethod
-    def from_tensordict(cls, qns_to_tensor, rank=None):
+    def from_tensordict(cls, qns_to_tensor: Dict[Tuple, numpy.array], rank=None):
         rank = rank or len(next(iter(qns_to_tensor.keys())))
 
         block_tensor = cls(rank)
@@ -66,12 +67,12 @@ class BlockTensor(object):
 
         return block_tensor
 
-    def tensordot(self, other, ax, ax_other):
+    def tensordot(self, other: "BlockTensor", ax: int, ax_other: int):
 
         rank = self.rank + other.rank - 2
         result = self.__class__(rank)
 
-        # get all qn to tensor mapping from both BlockTensors for their respective axes
+        # get all qn to tensor mapping from both SparseTensors for their respective axes
         tensors = self.qn_to_tensors[ax]
         tensors_other = other.qn_to_tensors[ax_other]
 
