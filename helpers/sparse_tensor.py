@@ -22,21 +22,21 @@ class SparseTensor:
             self._rank = len(idxs)
             self._init_indices_from_rank()
 
-    def _check_add_indices(self, idxs: IdxType):
+    def _check_add_indices(self, idxs: IdxType) -> None:
         idxs = (idxs,) if self._rank == 1 or not isinstance(idxs, tuple) else idxs
         self._check_set_rank(idxs)
 
         for i, idx in enumerate(idxs):
             self._indices[i][idx].add(idxs)
 
-    def __getitem__(self, idxs: IdxType):
+    def __getitem__(self, idxs: IdxType) -> Any:
         return self._idx_to_value[idxs]
 
     def __setitem__(self, idxs, value) -> None:
         self._check_add_indices(idxs)
         self._idx_to_value[idxs] = value
 
-    def update(self, idx_to_value: Dict[IdxType, Any]):
+    def update(self, idx_to_value: Dict[IdxType, Any]) -> None:
         for idxs in idx_to_value:
             self._check_add_indices(idxs)
 
