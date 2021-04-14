@@ -1,14 +1,18 @@
-from typing import Dict, Any, Tuple, Union
+from collections import defaultdict
+from typing import Dict, Any, Tuple, Union, Hashable
 
-IdxType = Union[Tuple[Any], Any]
+IdxType = Union[Tuple[Hashable], Hashable]
 
 
 class SparseTensor:
     def __init__(self, idx_to_value: Dict[IdxType, Any] = None, rank: int = None) -> None:
         self._rank = rank
-        self._indices = tuple()
+        self._init_indices_from_rank()
         self._idx_to_value = dict()
         self.update(idx_to_value)
+
+    def _init_indices_from_rank(self) -> None:
+        self._indices = tuple(defaultdict(set) for _ in range(self._rank)) if self._rank else None
 
     def _check_set_rank(self, idxs: IdxType) -> None:
         if self._rank:
@@ -16,14 +20,14 @@ class SparseTensor:
                 raise ValueError(f"{idxs} is not of length {self._rank}")
         else:
             self._rank = len(idxs)
-            self._indices = tuple(set() for _ in range(self._rank))
+            self._init_indices_from_rank()
 
     def _check_add_indices(self, idxs: IdxType):
-        idxs = idxs if isinstance(idxs, tuple) else tuple(idxs)
+        idxs = (idxs,) if self._rank == 1 or not isinstance(idxs, tuple) else idxs
         self._check_set_rank(idxs)
 
         for i, idx in enumerate(idxs):
-            self._indices[i].add(idx)
+            self._indices[i][idx].add(idxs)
 
     def __getitem__(self, idxs: IdxType):
         return self._idx_to_value[idxs]
