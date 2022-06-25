@@ -1,7 +1,7 @@
 import numpy
 
 from src.math_utilities import inf_norm
-from src.mps_matrix import MPSMatrix
+from src.mps import IMPS
 from src.transfer_operator import TransferOperator, transop_dominant_eigs, transop_eigs
 
 
@@ -13,8 +13,8 @@ def main():
     # dtype = numpy.float64
     dtype = numpy.float32
 
-    A = MPSMatrix.get_random_left_ortho_mps(d, mA, dtype=dtype)
-    B = MPSMatrix.get_random_right_ortho_mps(d, mB, dtype=dtype)
+    A = IMPS.get_random_left_ortho_mps(d, mA, dtype=dtype)
+    B = IMPS.get_random_right_ortho_mps(d, mB, dtype=dtype)
 
     TMA = TransferOperator(A)
     TMB = TransferOperator(B)
@@ -34,7 +34,7 @@ def main():
     print(inf_norm(TMA.mult_right(RA) - eA*RA))
     print(inf_norm(TMB.mult_left(LB) - eB*LB))
 
-    M = MPSMatrix.get_random_mps(d, mA, dtype=dtype)
+    M = IMPS.get_random_mps(d, mA, dtype=dtype)
     TM = TransferOperator(M)
     eL, LM = transop_dominant_eigs(TM, 'left')
     eR, RM = transop_dominant_eigs(TM, 'right')

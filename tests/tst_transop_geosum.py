@@ -1,7 +1,7 @@
 import numpy
 
 from src.math_utilities import matrix_dot, inf_norm
-from src.mps_matrix import MPSMatrix
+from src.mps import IMPS
 from src.transfer_operator import transop_dominant_eigs, TransferOperator, transop_geometric_sum
 
 
@@ -11,7 +11,7 @@ def main():
     dtype = numpy.float64
     # dtype = numpy.float32
 
-    AL = MPSMatrix.get_random_left_ortho_mps(d, m, dtype=dtype)
+    AL = IMPS.get_random_left_ortho_mps(d, m, dtype=dtype)
     TMAL = TransferOperator(AL)
 
     eR, R = transop_dominant_eigs(TMAL, 'right')

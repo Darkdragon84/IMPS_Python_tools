@@ -13,7 +13,7 @@ class TransferOperator(object):
     def __init__(self, A, B=None):
         self._A = A
         self._B = B or A
-        assert self._A.d == self._B.d
+        assert self._A.dim_phys == self._B.dim_phys
         self._dims = (self._A.dims[0] * self._B.dims[0], self._A.dims[1] * self._B.dims[1])
         self._dtype = numpy.result_type(self._A.dtype, self._B.dtype)
 
