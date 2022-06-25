@@ -1,34 +1,40 @@
+from typing import Tuple, Optional
+
 import numpy
+import numpy as np
+from numpy.linalg import qr
+
+from src.utilities import MatType
 
 
-def inf_norm(X):
+def inf_norm(x) -> float:
     """
     slightly altered infinity norm, as the maximum absolute value entry of the matrix
-    :param X:   ndarray
+    :param x:   ndarray
     :return:
     """
-    return numpy.max(numpy.abs(X))
+    return numpy.max(numpy.abs(x))
 
 
-def matrix_dot(X, Y):
+def matrix_dot(x: Optional[np.ndarray], y: Optional[np.ndarray]) -> np.ScalarType:
     """
-    This version of matrix dot product does *not* complex conjugate X!
+    This version of matrix dot product does *not* complex conjugate x!
     None values are interpreted as identity matrices:
-    e.g. matrix_dot(None, Y) = trace(Id*Y) = trace(Y)
+    e.g. matrix_dot(None, y) = trace(Id*y) = trace(y)
 
-    :param X:   ndarray
-    :param Y:   ndarray
-    :return:    scalar product between matrices \sum_ij X_ij * Y_ij
+    :param x:   ndarray
+    :param y:   ndarray
+    :return:    scalar product between matrices \sum_ij x_ij * y_ij
     """
-    if X is None:
-        return Y.trace()
-    if Y is None:
-        return X.trace()
-    assert X.shape == Y.shape
-    return numpy.dot(X.ravel(), Y.ravel())
+    if x is None:
+        return y.trace()
+    if y is None:
+        return x.trace()
+    assert x.shape == y.shape
+    return numpy.dot(x.ravel(), y.ravel())
 
 
-def add_scalar_times_matrix(X, Y, a):
+def add_scalar_times_matrix(x: np.ndarray, y: np.ndarray, a: np.ScalarType):
     """
     adds scalar `a` time matrix `Y` to matrix `X`:
     X += a*Y
@@ -36,12 +42,26 @@ def add_scalar_times_matrix(X, Y, a):
     This is equivalent to `X += a*eye(X.shape)`.
     This function modifies `X` and returns nothing!
 
-    :param X:  ndarray
-    :param Y:  ndarray
+    :param x:  ndarray
+    :param y:  ndarray
     :param a:  scalar
     :return:
     """
-    if Y is None:
-        numpy.fill_diagonal(X, X.diagonal() + a)
+    if y is None:
+        numpy.fill_diagonal(x, x.diagonal() + a)
     else:
-        X += a*Y
+        x += a * y
+
+
+def qr_pos(x: MatType) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    computes a unique QR factorization, where the diagonals of R are positive
+    :param x:
+    :return:
+    """
+    if np.iscomplexobj(x):
+        raise NotImplementedError
+    q, r = qr(x)
+    # TODO make this work for complex numbers
+    transf = np.diag(np.sign(np.diag(r)))
+    return q @ transf, transf @ r

@@ -3,6 +3,7 @@ from itertools import product, chain
 import numpy as np
 import pytest
 
+from src.constants import DTYPES, RDTYPES, CDTYPES
 from src.mps import IMPS
 
 TEST_MATRIX_PARAMETERS = [
@@ -10,9 +11,6 @@ TEST_MATRIX_PARAMETERS = [
     (4, (4, 2), 69),
     (5, (3, 8), 84),
 ]
-RDTYPES = [np.float64, np.float32, np.float16]
-CDTYPES = [np.complex128, np.complex64]
-DTYPES = RDTYPES + CDTYPES
 
 
 class TestIMPS:

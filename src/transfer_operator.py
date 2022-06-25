@@ -1,32 +1,15 @@
-import enum
 import warnings
 from functools import cached_property
 from typing import Optional, Tuple
 
 import numpy as np
-from numpy._typing import DTypeLike
+from numpy.typing import DTypeLike
 from scipy.sparse.linalg import eigs, LinearOperator, gmres
 
+import src.utilities
 from src.math_utilities import inf_norm, matrix_dot, add_scalar_times_matrix
-from src.mps import MpsType, MatType
-
-DIR_TO_AXIS = {'left': 0,
-               'right': 1}
-
-
-class Direction(enum.Enum):
-    LEFT = 0
-    RIGHT = 1
-
-
-class Which(enum.Enum):
-    # possible values for the `which` flag for scipy.sparse.linalg.eigs
-    LM = "LM"
-    SM = "SM"
-    LR = "LR"
-    SR = "SR"
-    LI = "LI"
-    SI = "SI"
+from src.mps import MpsType
+from src.utilities import Direction, Which, MatType
 
 
 class TransferOperator:
@@ -76,12 +59,12 @@ class TransferOperator:
             assert m == n
             y = np.zeros((m, n), dtype=self.dtype)
             for a, b in zip(self._mps_bottom, self._mps_top):
-                y += b.T @ a
+                y += src.utilities.T @ a
         else:
             assert x.shape == (m, n)
             y = np.zeros((m, n), dtype=np.result_type(self.dtype, x.dtype))
             for a, b in zip(self._mps_bottom, self._mps_top):
-                y += (b.T @ x) @ a
+                y += (src.utilities.T @ x) @ a
 
         return y
 
@@ -92,12 +75,12 @@ class TransferOperator:
             assert m == n
             y = np.zeros((m, n), dtype=self.dtype)
             for a, b in zip(self._mps_bottom, self._mps_top):
-                y += a @ b.T
+                y += a @ src.utilities.T
         else:
             assert x.shape == (m, n)
             y = np.zeros((m, n), dtype=np.result_type(self.dtype, x.dtype))
             for a, b in zip(self._mps_bottom, self._mps_top):
-                y += (a @ x) @ b.T
+                y += (a @ x) @ src.utilities.T
 
         return y
 
@@ -132,7 +115,7 @@ def transop_dominant_eigs(
     # make hermitian
     # due to TM = \sum_i A[i]* \otimes A[i], both V and V' are eigenmatrices (check by transposing EV equation)
     # this should also remove the arbitrary complex phase, as the diagonal is then real by definition
-    V += V.conj().T
+    V += src.utilities.T
 
     # remove potential remaining sign of eigenmatrix (should already be zero from hermitization) and normalize
     V /= V.trace()
@@ -228,7 +211,7 @@ def transop_geometric_sum(
         x0 = np.random.randn(m, n).astype(transfer_op.dtype)
 
     if direction == Direction.LEFT:
-        # project out dominante eigenspace
+        # project out dominant eigenspace
         # x -= trace(x*R)*L
         # one iteration:
         # y = x - [Tm(x) - tr(x*R)*L] = x - Tm(x) + tr(x*R)*L
@@ -236,7 +219,7 @@ def transop_geometric_sum(
         mult_fun = transfer_op.mult_left
         proj_out, mult_with = R, L
     elif direction == Direction.RIGHT:
-        # project out dominante eigenspace
+        # project out dominant eigenspace
         # x -= trace(L*x)*R
         # one iteration:
         # y = x - [Tm(x) - tr(L*x)*R] = x - Tm(x) + tr(L*x)*R

@@ -2,7 +2,8 @@ import numpy
 
 from src.math_utilities import inf_norm
 from src.mps import IMPS
-from src.transfer_operator import TransferOperator, transop_dominant_eigs, transop_eigs, Direction, Which
+from src.transfer_operator import TransferOperator, transop_dominant_eigs, transop_eigs
+from src.utilities import Direction, Which
 
 
 def main():

@@ -3,7 +3,8 @@ import numpy as np
 
 from src.math_utilities import matrix_dot, inf_norm
 from src.mps import IMPS
-from src.transfer_operator import transop_dominant_eigs, TransferOperator, transop_geometric_sum, Direction
+from src.transfer_operator import transop_dominant_eigs, TransferOperator, transop_geometric_sum
+from src.utilities import Direction
 from numpy.linalg import norm
 
 
