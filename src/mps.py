@@ -1,5 +1,5 @@
 from collections.abc import Iterable, Sequence
-from typing import TypeVar, Tuple
+from typing import TypeVar, Tuple, Optional
 
 import numpy as np
 from numpy.typing import DTypeLike
@@ -26,6 +26,9 @@ class IMPS(Sequence[MatType]):
 
         self._matrices = matrices
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}(dim_phys={self.dim_phys}, dims={self.dims}, dtype={self.dtype})"
+
     def __eq__(self, other: "IMPS"):
         return type(self) == type(other) and np.array_equal(self.matrices, other.matrices)
 
@@ -34,12 +37,6 @@ class IMPS(Sequence[MatType]):
 
     def __getitem__(self, ind) -> MatType:
         return self._matrices[ind]
-
-    # def __setitem__(self, index, matrix):
-    #     self._matrices[index] = matrix
-
-    def __iter__(self) -> Iterable[MatType]:
-        return iter(self._matrices)
 
     @property
     def matrices(self):
@@ -70,16 +67,25 @@ class IMPS(Sequence[MatType]):
         return cls(np.split(mat, dim_phys, axis))
 
     @classmethod
-    def random_mps(cls, dim_phys: int, dims: DimsType, dtype=np.float64):
-        return cls([np.random.randn(dims).astype(dtype) for _ in range(dim_phys)])
+    def random_mps(cls, dim_phys: int, dims: DimsType, dtype: Optional[np.floating] = None, seed: Optional[int] = None):
+        if seed is not None:
+            np.random.seed(seed)
+        dtype = dtype or np.float
+        return cls([np.random.randn(*dims).astype(dtype) for _ in range(dim_phys)])
 
     @classmethod
-    def random_left_ortho_mps(cls, dim_phys: int, dims: DimsType, dtype=np.float64):
+    def random_left_ortho_mps(cls, dim_phys: int, dims: DimsType, dtype: Optional[np.floating] = None, seed: Optional[int] = None):
+        if seed is not None:
+            np.random.seed(seed)
+        dtype = dtype or np.float
         q, _ = np.linalg.qr(np.random.randn(dim_phys * dims[0], dims[1:]).astype(dtype))
         return cls.from_full_matrix(q, dim_phys, 0)
 
     @classmethod
-    def random_right_ortho_mps(cls, dim_phys: int, dims: DimsType, dtype=np.float64):
+    def random_right_ortho_mps(cls, dim_phys: int, dims: DimsType, dtype: Optional[np.floating] = None, seed: Optional[int] = None):
+        if seed is not None:
+            np.random.seed(seed)
+        dtype = dtype or np.float
         q, _ = np.linalg.qr(np.random.randn(dim_phys * dims[-1], dims[:-1]).astype(dtype))
         return cls.from_full_matrix(q.T, dim_phys, 1)
 
@@ -90,28 +96,33 @@ class IMPS(Sequence[MatType]):
         return self.mult_with_scalar(scalar)
 
     def __truediv__(self, scalar: np.ScalarType):
-        return self.mult_with_scalar(1. / scalar)
+        return self.div_by_scalar(scalar)
 
     def __matmul__(self, other: MatType):
         if isinstance(other, MatType):
             return self.mult_right_with_matrix(other)
         else:
-            raise NotImplementedError("unsupported operand type(s) for *: {} and {}".format(other.__class__.__name__,
-                                                                                            self.__class__.__name__))
+            raise NotImplementedError(f"unsupported operand type(s) for *: {other.__class__.__name__} "
+                                      f"and {self.__class__.__name__}")
 
     def __rmatmul__(self, other: MatType):
         if isinstance(other, MatType):
             return self.mult_left_with_matrix(other)
         else:
-            raise NotImplementedError("unsupported operand type(s) for *: {} and {}".format(self.__class__.__name__,
-                                                                                            other.__class__.__name__))
+            raise NotImplementedError(f"unsupported operand type(s) for *: {other.__class__.__name__} "
+                                      f"and {self.__class__.__name__}")
 
     def mult_with_scalar(self, scalar: np.ScalarType):
         assert np.isscalar(scalar)
         return self.__class__([mat * scalar for mat in self._matrices])
 
-    def mult_right_with_matrix(self, x=None):
+    def div_by_scalar(self, scalar: np.ScalarType):
+        assert np.isscalar(scalar)
+        return self.__class__([mat / scalar for mat in self._matrices])
+
+    def mult_right_with_matrix(self, x: Optional[MatType] = None):
         if x is None:
+            # this is useful for applying the transfer operator to unity (i.e. a None matrix)
             return self
 
         if x.shape[0] != self.dims[1]:
@@ -119,8 +130,9 @@ class IMPS(Sequence[MatType]):
 
         return self.__class__([mat @ x for mat in self._matrices])
 
-    def mult_left_with_matrix(self, x=None):
+    def mult_left_with_matrix(self, x: Optional[MatType] = None):
         if x is None:
+            # this is useful for applying the transfer operator to unity (i.e. a None matrix)
             return self
 
         if x.shape[1] != self.dims[0]:
