@@ -6,9 +6,8 @@ from numpy.typing import DTypeLike
 
 T = TypeVar("T", bound=np.floating)
 
-
 DimsType = Tuple[int, ...]
-MatType = np.ndarray[DimsType, T]
+MatType = np.ndarray[Tuple[int, int], T]
 
 
 class IMPS(Sequence[MatType]):
@@ -79,19 +78,21 @@ class IMPS(Sequence[MatType]):
         return cls([np.random.randn(*dims).astype(dtype) for _ in range(dim_phys)])
 
     @classmethod
-    def random_left_ortho_mps(cls, dim_phys: int, dims: DimsType, dtype: Optional[DTypeLike] = None, seed: Optional[int] = None):
+    def random_left_ortho_mps(cls, dim_phys: int, dims: DimsType, dtype: Optional[DTypeLike] = None,
+                              seed: Optional[int] = None):
         if seed is not None:
             np.random.seed(seed)
         dtype = dtype or np.float
-        q, _ = np.linalg.qr(np.random.randn(dim_phys * dims[0], dims[1:]).astype(dtype))
+        q, _ = np.linalg.qr(np.random.randn(dim_phys * dims[0], *dims[1:]).astype(dtype))
         return cls.from_full_matrix(q, dim_phys, 0)
 
     @classmethod
-    def random_right_ortho_mps(cls, dim_phys: int, dims: DimsType, dtype: Optional[DTypeLike] = None, seed: Optional[int] = None):
+    def random_right_ortho_mps(cls, dim_phys: int, dims: DimsType, dtype: Optional[DTypeLike] = None,
+                               seed: Optional[int] = None):
         if seed is not None:
             np.random.seed(seed)
         dtype = dtype or np.float
-        q, _ = np.linalg.qr(np.random.randn(dim_phys * dims[-1], dims[:-1]).astype(dtype))
+        q, _ = np.linalg.qr(np.random.randn(dim_phys * dims[-1], *dims[:-1]).astype(dtype))
         return cls.from_full_matrix(q.T, dim_phys, 1)
 
     def __mul__(self, scalar: np.ScalarType):
@@ -144,3 +145,6 @@ class IMPS(Sequence[MatType]):
             raise ValueError(f"x has wrong shape[0] (={x.shape[1]}, should be {self.dims[0]})")
 
         return self.__class__([x @ mat for mat in self._matrices])
+
+
+MpsType = TypeVar("MpsType", bound=IMPS)

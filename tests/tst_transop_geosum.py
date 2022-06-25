@@ -1,8 +1,9 @@
 import numpy
 
-from src.math_utilities import matrix_dot, inf_norm
+from src.math_utilities import matrix_dot
 from src.mps import IMPS
-from src.transfer_operator import transop_dominant_eigs, TransferOperator, transop_geometric_sum
+from src.transfer_operator import transop_dominant_eigs, TransferOperator, transop_geometric_sum, Direction
+from numpy.linalg import norm
 
 
 def main():
@@ -11,20 +12,27 @@ def main():
     dtype = numpy.float64
     # dtype = numpy.float32
 
-    AL = IMPS.get_random_left_ortho_mps(d, m, dtype=dtype)
+    AL = IMPS.random_left_ortho_mps(d, (m, m), dtype=dtype)
     TMAL = TransferOperator(AL)
 
-    eR, R = transop_dominant_eigs(TMAL, 'right')
+    eR, R = transop_dominant_eigs(TMAL, Direction.RIGHT)
     L = None
-    # print(1 - eR, matrix_dot(L, R))
-    # print("left:", inf_norm(TMAL.mult_left(L) - numpy.eye(m)))
-    # print("right:", inf_norm(TMAL.mult_right(R) - R))
 
     x = numpy.random.randn(m, m)
-    y, info = transop_geometric_sum(x, TMAL, 'left', L, R, chk=True)
+    yl, info = transop_geometric_sum(x, TMAL, Direction.LEFT, L, R, chk=True)
 
-    print("Tr(y*R)=", matrix_dot(y, R))
-    print("done")
+    print(f"Tr(yl*R)/|yl||R|={matrix_dot(yl, R) / (norm(yl) * norm(R)):2.6e}")
+
+    BR = IMPS.random_right_ortho_mps(d, (m, m), dtype=dtype)
+    TMBR = TransferOperator(BR)
+
+    eL, L = transop_dominant_eigs(TMBR, Direction.LEFT)
+    R = None
+
+    x = numpy.random.randn(m, m)
+    yr, info = transop_geometric_sum(x, TMBR, Direction.RIGHT, L, R, chk=True)
+
+    print(f"Tr(L*yr)/|L||yr|={matrix_dot(L, yr) / (norm(L) * norm(yr)):2.6e}")
 
 
 if __name__ == '__main__':

@@ -1,76 +1,115 @@
+import enum
 import warnings
+from typing import Optional, Tuple
 
+import numpy as np
+from numpy._typing import DTypeLike
 from scipy.sparse.linalg import eigs, LinearOperator, gmres
-import numpy
 
-from src.math_utilities import inf_norm, matrix_dot,add_scalar_times_matrix
+from src.math_utilities import inf_norm, matrix_dot, add_scalar_times_matrix
+from src.mps import MpsType, MatType
 
 DIR_TO_AXIS = {'left': 0,
                'right': 1}
 
 
-class TransferOperator(object):
-    def __init__(self, A, B=None):
-        self._A = A
-        self._B = B or A
-        assert self._A.dim_phys == self._B.dim_phys
-        self._dims = (self._A.dims[0] * self._B.dims[0], self._A.dims[1] * self._B.dims[1])
-        self._dtype = numpy.result_type(self._A.dtype, self._B.dtype)
+class Direction(enum.Enum):
+    LEFT = 0
+    RIGHT = 1
+
+
+class Which(enum.Enum):
+    # possible values for the `which` flag for scipy.sparse.linalg.eigs
+    LM = "LM"
+    SM = "SM"
+    LR = "LR"
+    SR = "SR"
+    LI = "LI"
+    SI = "SI"
+
+
+class TransferOperator:
+    def __init__(self, mps_bottom: MpsType, mps_top: Optional[MpsType] = None):
+        self._mps_bottom = mps_bottom
+        self._mps_top = mps_top or mps_bottom
+        assert self._mps_bottom.dim_phys == self._mps_top.dim_phys
+        self._dims = (self._mps_bottom.dims[0] * self._mps_top.dims[0],
+                      self._mps_bottom.dims[1] * self._mps_top.dims[1])
+        self._dtype = np.dtype(np.result_type(self._mps_bottom.dtype, self._mps_top.dtype))
+        self._mixed = self.mps_top != self.mps_bottom
 
     @property
-    def A(self):
-        return self._A
+    def mps_bottom(self) -> MpsType:
+        return self._mps_bottom
 
     @property
-    def B(self):
-        return self._B
+    def mps_top(self) -> MpsType:
+        return self._mps_top
 
     @property
-    def dtype(self):
+    def mixed(self) -> bool:
+        return self._mixed
+
+    @property
+    def dtype(self) -> DTypeLike:
         return self._dtype
 
     @property
-    def dims(self):
+    def dims(self) -> Tuple[int, ...]:
         return self._dims
 
     @property
-    def argdims(self):
-        return (self._B.dims[0], self._A.dims[0]), (self._A.dims[1], self._B.dims[1])
+    def argdims(self) -> Tuple[Tuple[int, int], Tuple[int, int]]:
+        return (
+            (self._mps_top.dims[0], self._mps_bottom.dims[0]),
+            (self._mps_bottom.dims[1], self._mps_top.dims[1])
+        )
 
-    def mult_left(self, x=None):
-        m, n = self._B.dims[0], self._A.dims[0]
+    def mult_left(self, x: Optional[MatType] = None) -> MatType:
+        m, n = self.argdims[0]
 
-        y = 0
         if x is None:
             assert m == n
-            for a, b in zip(self._A, self._B):
+            y = np.zeros((m, n), dtype=self.dtype)
+            for a, b in zip(self._mps_bottom, self._mps_top):
                 y += b.T @ a
         else:
             assert x.shape == (m, n)
-            for a, b in zip(self._A, self._B):
+            y = np.zeros((m, n), dtype=np.result_type(self.dtype, x.dtype))
+            for a, b in zip(self._mps_bottom, self._mps_top):
                 y += (b.T @ x) @ a
 
         return y
 
-    def mult_right(self, x=None):
-        m, n = self._A.dims[1], self._B.dims[1]
-        y = 0
+    def mult_right(self, x: Optional[MatType] = None) -> MatType:
+        m, n = self.argdims[1]
+
         if x is None:
             assert m == n
-            for a, b in zip(self._A, self._B):
+            y = np.zeros((m, n), dtype=self.dtype)
+            for a, b in zip(self._mps_bottom, self._mps_top):
                 y += a @ b.T
         else:
             assert x.shape == (m, n)
-            for a, b in zip(self._A, self._B):
+            y = np.zeros((m, n), dtype=np.result_type(self.dtype, x.dtype))
+            for a, b in zip(self._mps_bottom, self._mps_top):
                 y += (a @ x) @ b.T
 
         return y
 
 
-def transop_dominant_eigs(transop, direction, tol=0, which='LR', v0=None, maxiter=None, ncv=None):
+def transop_dominant_eigs(
+    transfer_op: TransferOperator,
+    direction: Direction,
+    tol: float = 0,
+    which: Which = Which.LR,
+    v0: Optional[np.ndarray] = None,
+    maxiter: Optional[int] = None,
+    ncv: Optional[int] = None
+):
     """
     this function is only meant for non-mixed TM, for which the dominant eigenvalue is guaranteed to be positive real
-    :param transop:
+    :param transfer_op:
     :param direction:
     :param tol:
     :param which:
@@ -79,8 +118,10 @@ def transop_dominant_eigs(transop, direction, tol=0, which='LR', v0=None, maxite
     :param ncv:
     :return:
     """
-    assert transop.A == transop.B
-    E, Vm = transop_eigs(transop, direction, 1, which=which, tol=tol, v0=v0, maxiter=maxiter, ncv=ncv)
+    if transfer_op.mixed:
+        raise ValueError("`transfer_op` must not be mixed for dominant eigs.")
+
+    E, Vm = transop_eigs(transfer_op, direction, 1, which=which, tol=tol, v0=v0, maxiter=maxiter, ncv=ncv)
 
     V = Vm[0]
     # make hermitian
@@ -92,71 +133,80 @@ def transop_dominant_eigs(transop, direction, tol=0, which='LR', v0=None, maxite
     V /= V.trace()
 
     # we want the result to be contiguous in memory, so we copy once here
-    V = numpy.real(V).copy()
-    return numpy.real(E[0]), V
+    V = np.real(V).copy()
+    return np.real(E[0]), V
 
 
-def transop_eigs(transop, direction, nev, which='LR', tol=0, v0=None, maxiter=None, ncv=None, sort=False):
+def transop_eigs(
+    transfer_op: TransferOperator,
+    direction: Direction,
+    nev: int,
+    which: Which = Which.LR,
+    tol: float = 0,
+    v0: Optional[np.ndarray] = None,
+    maxiter: Optional[int] = None,
+    ncv: Optional[int] = None,
+    sort: bool = False
+):
+    dim = transfer_op.dims[0]
+    assert dim == transfer_op.dims[1], f"`transfer_op` needs to be square, i.e. dims[0] == dims[1]"
 
-    dim = transop.dims[0]
-    assert dim == transop.dims[1]
-
-    if direction == 'left':
-        m, n = transop.argdims[0]
-
-        def matvec(xv):
-            x = xv.reshape(m, n)
-            y = transop.mult_left(x)
-            return y.ravel()
-    elif direction == 'right':
-        m, n = transop.argdims[1]
-
-        def matvec(xv):
-            x = xv.reshape(m, n)
-            y = transop.mult_right(x)
-            return y.ravel()
+    m, n = transfer_op.argdims[direction.value]
+    if direction == Direction.LEFT:
+        func = transfer_op.mult_left
+    elif direction == Direction.RIGHT:
+        func = transfer_op.mult_right
     else:
-        raise ValueError("direction {} not recognized, must be one of ['left', 'right']")
+        raise ValueError(f"direction '{direction}' not recognized, must be one of {tuple(Direction)}")
 
-    # the next two calls are fine, even though PyCharm complains
-    TMop = LinearOperator(shape=(dim, dim), matvec=matvec, dtype=transop.dtype)
-    E, Vm = eigs(TMop, nev, which=which, tol=tol, v0=v0, maxiter=maxiter, ncv=ncv)
+    def matvec(xv):
+        x = xv.reshape(m, n)
+        y = func(x)
+        return y.ravel()
+
+    TMop = LinearOperator(shape=(dim, dim), matvec=matvec, dtype=transfer_op.dtype)  # type: ignore
+    E, Vm = eigs(TMop, nev, which=which.value, tol=tol, v0=v0, maxiter=maxiter, ncv=ncv)  # type: ignore
 
     # V is in fortran order (F_CONTIGUOUS, column major),
     # so V.T uses same memory, but is in C order (C_CONTIGUOUS, row major)
     V = Vm.T.reshape((-1, m, n))
     if sort:
-        inds = numpy.argsort(numpy.abs(E))[::-1]
+        inds = np.argsort(np.abs(E))[::-1]
         E = E[inds]
         V = V[inds]
     return E, V
 
 
-def transop_geometric_sum(x, transop, direction, L=None, R=None, reltol=1e-6, x0=None, maxiter=None,
-                          verbose=False, chk=False):
-    axis = DIR_TO_AXIS[direction] if isinstance(direction, str) else direction
-
-    dim = transop.dims[0]
-    m, n = transop.argdims[axis]
+def transop_geometric_sum(
+    x: MatType,
+    transfer_op: TransferOperator,
+    direction: Direction,
+    L: Optional[MatType] = None,
+    R: Optional[MatType] = None,
+    reltol: float = 1e-6,
+    x0: Optional[np.ndarray] = None,
+    maxiter: int = None,
+    chk: bool = False
+):
+    dim = transfer_op.dims[0]
+    m, n = transfer_op.argdims[direction.value]
 
     assert x.shape == (m, n)  # inhomogeneity must have correct dimensions
-    assert transop.dims[1] == dim  # transop must be square
-    assert dim == m*n  # sanity check for dimensions
+    assert transfer_op.dims[1] == dim  # transop must be square
+    assert dim == m * n  # sanity check for dimensions
 
     if chk:
-        ltmp = transop.mult_left(L)
-        rtmp = transop.mult_right(R)
-        ltmp -= numpy.eye(*transop.argdims[0]) if L is None else L
-        rtmp -= numpy.eye(*transop.argdims[1]) if R is None else R
+        ltmp = transfer_op.mult_left(L)
+        rtmp = transfer_op.mult_right(R)
+        ltmp -= np.eye(*transfer_op.argdims[0]) if L is None else L
+        rtmp -= np.eye(*transfer_op.argdims[1]) if R is None else R
 
         lchk = inf_norm(ltmp)
         rchk = inf_norm(rtmp)
         if lchk > reltol * (1 if L is None else inf_norm(L)):
-            warnings.warn("L is not a good left dominant eigenmatrix to reltol={:2.4} (lchk={:2.4})".format(reltol,
-                                                                                                            lchk))
+            warnings.warn(f"L is not a good left dominant eigenmatrix to reltol={reltol:2.4} (lchk={lchk:2.4})")
         if rchk > reltol * (1 if R is None else inf_norm(R)):
-            warnings.warn("R is not a good right dominant eigenmatrix to reltol={:2.4} (rchk={:2.4})".format(reltol,
-                                                                                                             rchk))
+            warnings.warn(f"R is not a good right dominant eigenmatrix to reltol={reltol:2.4} (rchk={rchk:2.4})")
     # properly normalize L and R
     lrnrm = matrix_dot(L, R)
     if L is not None:
@@ -166,9 +216,9 @@ def transop_geometric_sum(x, transop, direction, L=None, R=None, reltol=1e-6, x0
 
     if x0 is None:
         # TODO how to generate complex x0
-        x0 = numpy.random.randn(m, n).astype(transop.dtype)
+        x0 = np.random.randn(m, n).astype(transfer_op.dtype)
 
-    if direction == 'left':
+    if direction == Direction.LEFT:
         # project out dominante eigenspace
         # x -= trace(x*R)*L
         add_scalar_times_matrix(x, L, -matrix_dot(x, R))
@@ -176,13 +226,13 @@ def transop_geometric_sum(x, transop, direction, L=None, R=None, reltol=1e-6, x0
 
         def matvec(xv):
             xm = xv.reshape(m, n)
-            Txm = transop.mult_left(xm)
+            Txm = transfer_op.mult_left(xm)
             add_scalar_times_matrix(xm, L, matrix_dot(xm, R))
             # y = x - [Tm(x) - tr(x*R)*L] = x - Tm(x) + tr(x*R)*L
             ym = xm - Txm
             return ym.ravel()
 
-    elif direction == 'right':
+    elif direction == Direction.RIGHT:
         # project out dominante eigenspace
         # x -= trace(L*x)*R
         add_scalar_times_matrix(x, R, -matrix_dot(L, x))
@@ -190,24 +240,18 @@ def transop_geometric_sum(x, transop, direction, L=None, R=None, reltol=1e-6, x0
 
         def matvec(xv):
             xm = xv.reshape(m, n)
-            Txm = transop.mult_right(xm)
+            Txm = transfer_op.mult_right(xm)
             add_scalar_times_matrix(xm, R, matrix_dot(L, xm))
             # y = x - [Tm(x) - tr(L*x)*R] = x - Tm(x) + tr(L*x)*R
             ym = xm - Txm
             return ym.ravel()
     else:
-        raise ValueError("direction {} not recognized, must be one of ['left', 'right']")
+        raise ValueError(f"direction '{direction}' not recognized, must be one of {tuple(Direction)}")
 
-    TMop = LinearOperator(shape=(dim, dim), matvec=matvec, dtype=transop.dtype)
+    TMop = LinearOperator(shape=(dim, dim), matvec=matvec, dtype=transfer_op.dtype)  # type: ignore
     yv, info = gmres(TMop, x.ravel(), x0=x0.ravel(), tol=reltol, maxiter=maxiter)
     if info > 0:
         warnings.warn("gmres: convergence to reltol={} not achieved".format(reltol))
 
     y = yv.reshape(m, n)
     return y, info
-
-
-
-
-
-
