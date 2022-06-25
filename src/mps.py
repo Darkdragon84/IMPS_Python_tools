@@ -107,14 +107,14 @@ class IMPS(Sequence[MatType]):
         if isinstance(other, np.ndarray):
             return self.mult_right_with_matrix(other)
         else:
-            raise NotImplementedError(f"unsupported operand type(s) for *: {other.__class__.__name__} "
-                                      f"and {self.__class__.__name__}")
+            raise NotImplementedError(f"unsupported operand type(s) for @: {self.__class__.__name__} "
+                                      f"and {other.__class__.__name__}")
 
     def __rmatmul__(self, other: MatType):
         if isinstance(other, np.ndarray):
             return self.mult_left_with_matrix(other)
         else:
-            raise NotImplementedError(f"unsupported operand type(s) for *: {other.__class__.__name__} "
+            raise NotImplementedError(f"unsupported operand type(s) for @: {other.__class__.__name__} "
                                       f"and {self.__class__.__name__}")
 
     def mult_with_scalar(self, scalar: np.ScalarType):
