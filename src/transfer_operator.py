@@ -125,10 +125,10 @@ def transop_dominant_eigs(
     if transfer_op.is_mixed:
         raise ValueError("`transfer_op` must not be mixed for dominant eigs.")
 
-    E, Vm = transop_eigs(transfer_op, direction, 1, which=which, tol=tol, v0=v0, maxiter=maxiter, ncv=ncv)
+    E, Vm = transop_eigs(transfer_op, direction, nev=1, which=which, tol=tol, v0=v0, maxiter=maxiter, ncv=ncv)
 
     V = Vm[0]
-    E: np.floating = np.real(E[0])
+    E = E[0].real
     # make hermitian
     # due to TM = \sum_i A[i]* \otimes A[i], both V and V' are eigenmatrices (check by transposing EV equation)
     # this should also remove the arbitrary complex phase, as the diagonal is then real by definition
@@ -152,7 +152,7 @@ def transop_eigs(
     maxiter: Optional[int] = None,
     ncv: Optional[int] = None,
     sort: bool = False
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray[Tuple[int], np.ScalarType], np.ndarray[Tuple[int, int, int], np.ScalarType]]:
     if not transfer_op.is_square:
         raise ValueError(f"`transfer_op` needs to be square, i.e. dims[0] == dims[1]")
     dim = transfer_op.dims[0]
