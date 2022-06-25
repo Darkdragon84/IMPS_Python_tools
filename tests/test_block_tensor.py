@@ -1,6 +1,6 @@
 import numpy
 
-from helpers.block_tensor import BlockTensor
+from src.block_tensor import BlockTensor
 
 
 def main():

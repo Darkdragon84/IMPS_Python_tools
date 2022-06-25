@@ -3,7 +3,7 @@ import warnings
 from scipy.sparse.linalg import eigs, LinearOperator, gmres
 import numpy
 
-from helpers.math_utilities import inf_norm, matrix_dot,add_scalar_times_matrix
+from src.math_utilities import inf_norm, matrix_dot,add_scalar_times_matrix
 
 DIR_TO_AXIS = {'left': 0,
                'right': 1}

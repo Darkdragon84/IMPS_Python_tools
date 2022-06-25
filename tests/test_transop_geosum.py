@@ -1,8 +1,8 @@
 import numpy
 
-from helpers.math_utilities import matrix_dot, inf_norm
-from helpers.mps_matrix import MPSMatrix
-from helpers.transfer_operator import transop_dominant_eigs, TransferOperator, transop_geometric_sum
+from src.math_utilities import matrix_dot, inf_norm
+from src.mps_matrix import MPSMatrix
+from src.transfer_operator import transop_dominant_eigs, TransferOperator, transop_geometric_sum
 
 
 def main():
