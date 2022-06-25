@@ -1,5 +1,6 @@
 import enum
 import warnings
+from functools import cached_property
 from typing import Optional, Tuple
 
 import numpy as np
@@ -36,7 +37,6 @@ class TransferOperator:
         self._dims = (self._mps_bottom.dims[0] * self._mps_top.dims[0],
                       self._mps_bottom.dims[1] * self._mps_top.dims[1])
         self._dtype = np.dtype(np.result_type(self._mps_bottom.dtype, self._mps_top.dtype))
-        self._mixed = self.mps_top != self.mps_bottom
 
     @property
     def mps_bottom(self) -> MpsType:
@@ -46,9 +46,13 @@ class TransferOperator:
     def mps_top(self) -> MpsType:
         return self._mps_top
 
+    @cached_property
+    def is_mixed(self) -> bool:
+        return self.mps_top != self.mps_bottom
+
     @property
-    def mixed(self) -> bool:
-        return self._mixed
+    def is_square(self):
+        return self.dims[0] == self.dims[1]
 
     @property
     def dtype(self) -> DTypeLike:
@@ -106,7 +110,7 @@ def transop_dominant_eigs(
     v0: Optional[np.ndarray] = None,
     maxiter: Optional[int] = None,
     ncv: Optional[int] = None
-):
+) -> Tuple[np.floating, np.ndarray]:
     """
     this function is only meant for non-mixed TM, for which the dominant eigenvalue is guaranteed to be positive real
     :param transfer_op:
@@ -118,12 +122,13 @@ def transop_dominant_eigs(
     :param ncv:
     :return:
     """
-    if transfer_op.mixed:
+    if transfer_op.is_mixed:
         raise ValueError("`transfer_op` must not be mixed for dominant eigs.")
 
     E, Vm = transop_eigs(transfer_op, direction, 1, which=which, tol=tol, v0=v0, maxiter=maxiter, ncv=ncv)
 
     V = Vm[0]
+    E: np.floating = np.real(E[0])
     # make hermitian
     # due to TM = \sum_i A[i]* \otimes A[i], both V and V' are eigenmatrices (check by transposing EV equation)
     # this should also remove the arbitrary complex phase, as the diagonal is then real by definition
@@ -134,7 +139,7 @@ def transop_dominant_eigs(
 
     # we want the result to be contiguous in memory, so we copy once here
     V = np.real(V).copy()
-    return np.real(E[0]), V
+    return E, V
 
 
 def transop_eigs(
@@ -147,9 +152,10 @@ def transop_eigs(
     maxiter: Optional[int] = None,
     ncv: Optional[int] = None,
     sort: bool = False
-):
+) -> Tuple[np.ndarray, np.ndarray]:
+    if not transfer_op.is_square:
+        raise ValueError(f"`transfer_op` needs to be square, i.e. dims[0] == dims[1]")
     dim = transfer_op.dims[0]
-    assert dim == transfer_op.dims[1], f"`transfer_op` needs to be square, i.e. dims[0] == dims[1]"
 
     m, n = transfer_op.argdims[direction.value]
     if direction == Direction.LEFT:
@@ -187,12 +193,15 @@ def transop_geometric_sum(
     x0: Optional[np.ndarray] = None,
     maxiter: int = None,
     chk: bool = False
-):
+) -> MatType:
+    if not transfer_op.is_square:
+        raise ValueError(f"`transfer_op` needs to be square, i.e. dims[0] == dims[1]")
     dim = transfer_op.dims[0]
     m, n = transfer_op.argdims[direction.value]
 
-    assert x.shape == (m, n)  # inhomogeneity must have correct dimensions
-    assert transfer_op.dims[1] == dim  # transop must be square
+    if x.shape != (m, n):
+        raise ValueError(f"inhomogeneity has dimensions {x.shape}, but should be {(m, n)}.")
+
     assert dim == m * n  # sanity check for dimensions
 
     if chk:
@@ -221,37 +230,36 @@ def transop_geometric_sum(
     if direction == Direction.LEFT:
         # project out dominante eigenspace
         # x -= trace(x*R)*L
-        add_scalar_times_matrix(x, L, -matrix_dot(x, R))
-        add_scalar_times_matrix(x0, L, -matrix_dot(x0, R))
+        # one iteration:
+        # y = x - [Tm(x) - tr(x*R)*L] = x - Tm(x) + tr(x*R)*L
 
-        def matvec(xv):
-            xm = xv.reshape(m, n)
-            Txm = transfer_op.mult_left(xm)
-            add_scalar_times_matrix(xm, L, matrix_dot(xm, R))
-            # y = x - [Tm(x) - tr(x*R)*L] = x - Tm(x) + tr(x*R)*L
-            ym = xm - Txm
-            return ym.ravel()
-
+        mult_fun = transfer_op.mult_left
+        proj_out, mult_with = R, L
     elif direction == Direction.RIGHT:
         # project out dominante eigenspace
         # x -= trace(L*x)*R
-        add_scalar_times_matrix(x, R, -matrix_dot(L, x))
-        add_scalar_times_matrix(x0, R, -matrix_dot(L, x0))
+        # one iteration:
+        # y = x - [Tm(x) - tr(L*x)*R] = x - Tm(x) + tr(L*x)*R
 
-        def matvec(xv):
-            xm = xv.reshape(m, n)
-            Txm = transfer_op.mult_right(xm)
-            add_scalar_times_matrix(xm, R, matrix_dot(L, xm))
-            # y = x - [Tm(x) - tr(L*x)*R] = x - Tm(x) + tr(L*x)*R
-            ym = xm - Txm
-            return ym.ravel()
+        mult_fun = transfer_op.mult_right
+        proj_out, mult_with = L, R
     else:
         raise ValueError(f"direction '{direction}' not recognized, must be one of {tuple(Direction)}")
+
+    add_scalar_times_matrix(x, mult_with, -matrix_dot(proj_out, x))
+    add_scalar_times_matrix(x0, mult_with, -matrix_dot(proj_out, x0))
+
+    def matvec(xv):
+        xm = xv.reshape(m, n)
+        Txm = mult_fun(xm)
+        add_scalar_times_matrix(xm, mult_with, -matrix_dot(proj_out, xm))
+        ym = xm - Txm
+        return ym.ravel()
 
     TMop = LinearOperator(shape=(dim, dim), matvec=matvec, dtype=transfer_op.dtype)  # type: ignore
     yv, info = gmres(TMop, x.ravel(), x0=x0.ravel(), tol=reltol, maxiter=maxiter)
     if info > 0:
-        warnings.warn("gmres: convergence to reltol={} not achieved".format(reltol))
+        warnings.warn(f"gmres: convergence to reltol={reltol} not achieved")
 
     y = yv.reshape(m, n)
-    return y, info
+    return y

@@ -6,9 +6,9 @@ from src.transfer_operator import TransferOperator, transop_dominant_eigs, trans
 
 
 def main():
-    d = 3
-    mA = 80
-    mB = 80
+    d = 2
+    mA = 20
+    mB = 20
     # dtype = numpy.complex128
     # dtype = numpy.float64
     dtype = numpy.float32
