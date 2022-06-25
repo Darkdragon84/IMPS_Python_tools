@@ -1,4 +1,4 @@
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from typing import TypeVar, Tuple, Optional
 
 import numpy as np
@@ -30,7 +30,12 @@ class IMPS(Sequence[MatType]):
         return f"{self.__class__.__name__}(dim_phys={self.dim_phys}, dims={self.dims}, dtype={self.dtype})"
 
     def __eq__(self, other: "IMPS"):
-        return type(self) == type(other) and np.array_equal(self.matrices, other.matrices)
+        return all([
+            type(self) == type(other),
+            self.dim_phys == other.dim_phys,
+            self.dims == other.dims,
+            np.array_equal(self.matrices, other.matrices)  # let np.array_equal handle different dtypes
+        ])
 
     def __len__(self) -> int:
         return self._dim_phys
@@ -67,14 +72,14 @@ class IMPS(Sequence[MatType]):
         return cls(np.split(mat, dim_phys, axis))
 
     @classmethod
-    def random_mps(cls, dim_phys: int, dims: DimsType, dtype: Optional[np.floating] = None, seed: Optional[int] = None):
+    def random_mps(cls, dim_phys: int, dims: DimsType, dtype: Optional[DTypeLike] = None, seed: Optional[int] = None):
         if seed is not None:
             np.random.seed(seed)
         dtype = dtype or np.float
         return cls([np.random.randn(*dims).astype(dtype) for _ in range(dim_phys)])
 
     @classmethod
-    def random_left_ortho_mps(cls, dim_phys: int, dims: DimsType, dtype: Optional[np.floating] = None, seed: Optional[int] = None):
+    def random_left_ortho_mps(cls, dim_phys: int, dims: DimsType, dtype: Optional[DTypeLike] = None, seed: Optional[int] = None):
         if seed is not None:
             np.random.seed(seed)
         dtype = dtype or np.float
@@ -82,7 +87,7 @@ class IMPS(Sequence[MatType]):
         return cls.from_full_matrix(q, dim_phys, 0)
 
     @classmethod
-    def random_right_ortho_mps(cls, dim_phys: int, dims: DimsType, dtype: Optional[np.floating] = None, seed: Optional[int] = None):
+    def random_right_ortho_mps(cls, dim_phys: int, dims: DimsType, dtype: Optional[DTypeLike] = None, seed: Optional[int] = None):
         if seed is not None:
             np.random.seed(seed)
         dtype = dtype or np.float
@@ -99,14 +104,14 @@ class IMPS(Sequence[MatType]):
         return self.div_by_scalar(scalar)
 
     def __matmul__(self, other: MatType):
-        if isinstance(other, MatType):
+        if isinstance(other, np.ndarray):
             return self.mult_right_with_matrix(other)
         else:
             raise NotImplementedError(f"unsupported operand type(s) for *: {other.__class__.__name__} "
                                       f"and {self.__class__.__name__}")
 
     def __rmatmul__(self, other: MatType):
-        if isinstance(other, MatType):
+        if isinstance(other, np.ndarray):
             return self.mult_left_with_matrix(other)
         else:
             raise NotImplementedError(f"unsupported operand type(s) for *: {other.__class__.__name__} "
