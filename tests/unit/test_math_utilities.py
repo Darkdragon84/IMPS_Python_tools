@@ -1,8 +1,9 @@
 import pytest
 import numpy as np
 
-from src.constants import RDTYPES
+from src.constants import RDTYPES, CDTYPES
 from src.math_utilities import matrix_dot, qr_pos
+from src.utilities import dtype_precision
 
 
 @pytest.mark.parametrize("dims, seed", [
@@ -30,4 +31,12 @@ def test_qr_pos(dims, seed, dtype):
     q, r = np.linalg.qr(mat)
     qpos, rpos = qr_pos(mat)
     assert np.array_equal(np.abs(np.diag(r)), np.diag(rpos))
-    assert np.allclose(qpos @ rpos, mat)
+    assert np.allclose(qpos @ rpos, mat, atol=10 * dtype_precision(dtype))
+
+
+@pytest.mark.parametrize("dtype", CDTYPES)
+def test_qr_pos_fails(dtype):
+    np.random.seed(42)
+    mat = np.random.randn(20, 20).astype(dtype)
+    with pytest.raises(NotImplementedError):
+        qr_pos(mat)
