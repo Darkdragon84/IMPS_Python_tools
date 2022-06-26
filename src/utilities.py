@@ -4,14 +4,20 @@ from typing import TypeVar, Tuple, Optional
 import numpy as np
 from numpy.typing import DTypeLike
 
-T = TypeVar("T", bound=np.floating)
+VT = TypeVar("VT", bound=np.floating)
 DimsType = Tuple[int, ...]
-MatType = np.ndarray[Tuple[int, int], T]
+MatType = np.ndarray[Tuple[int, int], VT]
 
 
 class Direction(enum.Enum):
     LEFT = 0
     RIGHT = 1
+
+
+class DirectionError(Exception):
+    def __init__(self, *args):
+        args = (f"direction not recognized, must be one of {tuple(Direction)}",) + args
+        super().__init__(*args)
 
 
 class Which(enum.Enum):

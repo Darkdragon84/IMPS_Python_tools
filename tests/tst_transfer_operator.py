@@ -2,7 +2,7 @@ import numpy
 
 from src.math_utilities import inf_norm
 from src.mps import IMPS
-from src.transfer_operator import TransferOperator, transop_dominant_eigs, transop_eigs
+from src.transfer_operator import TransferOperator, transfer_op_dominant_eigs, transfer_op_eigs
 from src.utilities import Direction, Which
 
 
@@ -26,8 +26,8 @@ def main():
     print(f"AL left ortho: {inf_norm(y1 - numpy.eye(mA))}")
     print(f"BR right ortho: {inf_norm(y2 - numpy.eye(mB))}")
 
-    eA, RA = transop_dominant_eigs(TMA, Direction.RIGHT)
-    eB, LB = transop_dominant_eigs(TMB, Direction.LEFT)
+    eA, RA = transfer_op_dominant_eigs(TMA, Direction.RIGHT)
+    eB, LB = transfer_op_dominant_eigs(TMB, Direction.LEFT)
     print()
     print("AL separately")
     print(f"dominant EV={eA}, EV.dtype={eA.dtype}, RA.dtype={RA.dtype}")
@@ -38,8 +38,8 @@ def main():
 
     M = IMPS.random_mps(d, (mA, mA), dtype=dtype)
     TM = TransferOperator(M)
-    eL, LM = transop_dominant_eigs(TM, Direction.LEFT)
-    eR, RM = transop_dominant_eigs(TM, Direction.RIGHT)
+    eL, LM = transfer_op_dominant_eigs(TM, Direction.LEFT)
+    eR, RM = transfer_op_dominant_eigs(TM, Direction.RIGHT)
     print()
     print("general unnormalized M")
     print(f"left EV={eL}, EV.dtype={eL.dtype}, LM.dtype={LM.dtype}")
@@ -60,8 +60,8 @@ def main():
     print()
     print("mixed AL BR")
     TMAB = TransferOperator(A, B)
-    eABL, LAB = transop_eigs(TMAB, Direction.LEFT, nev=4, which=Which.LM, sort=True)
-    eABR, RAB = transop_eigs(TMAB, Direction.RIGHT, nev=4, which=Which.LM, sort=True)
+    eABL, LAB = transfer_op_eigs(TMAB, Direction.LEFT, nev=4, which=Which.LM, sort=True)
+    eABR, RAB = transfer_op_eigs(TMAB, Direction.RIGHT, nev=4, which=Which.LM, sort=True)
 
     print("left:")
     for e, L in zip(eABL, LAB):

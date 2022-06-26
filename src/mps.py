@@ -4,7 +4,7 @@ from typing import TypeVar, Optional
 import numpy as np
 from numpy.typing import DTypeLike
 
-import src.utilities
+from src.math_utilities import qr_pos
 from src.utilities import DimsType, MatType
 
 
@@ -81,7 +81,7 @@ class IMPS(Sequence[MatType]):
         if seed is not None:
             np.random.seed(seed)
         dtype = dtype or np.float
-        q, _ = np.linalg.qr(np.random.randn(dim_phys * dims[0], *dims[1:]).astype(dtype))
+        q, _ = qr_pos(np.random.randn(dim_phys * dims[0], *dims[1:]).astype(dtype))
         return cls.from_full_matrix(q, dim_phys, 0)
 
     @classmethod
@@ -90,8 +90,8 @@ class IMPS(Sequence[MatType]):
         if seed is not None:
             np.random.seed(seed)
         dtype = dtype or np.float
-        q, _ = np.linalg.qr(np.random.randn(dim_phys * dims[-1], *dims[:-1]).astype(dtype))
-        return cls.from_full_matrix(src.utilities.T, dim_phys, 1)
+        q, _ = qr_pos(np.random.randn(dim_phys * dims[-1], *dims[:-1]).astype(dtype))
+        return cls.from_full_matrix(q.T, dim_phys, 1)
 
     def __mul__(self, scalar: np.ScalarType):
         return self.mult_with_scalar(scalar)

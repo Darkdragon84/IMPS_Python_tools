@@ -1,9 +1,9 @@
 import numpy
 import numpy as np
 
-from src.math_utilities import matrix_dot, inf_norm
+from src.math_utilities import matrix_dot
 from src.mps import IMPS
-from src.transfer_operator import transop_dominant_eigs, TransferOperator, transop_geometric_sum
+from src.transfer_operator import transfer_op_dominant_eigs, TransferOperator, transfer_op_geometric_sum
 from src.utilities import Direction
 from numpy.linalg import norm
 
@@ -19,11 +19,11 @@ def main():
     AL = IMPS.random_left_ortho_mps(d, (m, m), dtype=dtype)
     TMAL = TransferOperator(AL)
 
-    eR, R = transop_dominant_eigs(TMAL, Direction.RIGHT)
+    eR, R = transfer_op_dominant_eigs(TMAL, Direction.RIGHT)
     L = None
 
     x = numpy.random.randn(m, m)
-    yl, info = transop_geometric_sum(x, TMAL, Direction.LEFT, L, R, chk=True, reltol=reltol)
+    yl = transfer_op_geometric_sum(x, TMAL, Direction.LEFT, L, R, chk=True, reltol=reltol)
 
     x_projl = x - matrix_dot(x, R) * one
     res_l = yl - TMAL.mult_left(yl) + matrix_dot(yl, R) * one - x_projl
@@ -33,11 +33,11 @@ def main():
     BR = IMPS.random_right_ortho_mps(d, (m, m), dtype=dtype)
     TMBR = TransferOperator(BR)
 
-    eL, L = transop_dominant_eigs(TMBR, Direction.LEFT)
+    eL, L = transfer_op_dominant_eigs(TMBR, Direction.LEFT)
     R = None
 
     x = numpy.random.randn(m, m)
-    yr, info = transop_geometric_sum(x, TMBR, Direction.RIGHT, L, R, chk=True, reltol=reltol)
+    yr = transfer_op_geometric_sum(x, TMBR, Direction.RIGHT, L, R, chk=True, reltol=reltol)
     x_projr = x - matrix_dot(L, x) * one
     res_r = yr - TMBR.mult_right(yr) + matrix_dot(L, yr) * one - x_projr
 
