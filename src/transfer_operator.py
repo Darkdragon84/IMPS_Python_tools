@@ -68,12 +68,12 @@ class TransferOperator:
             assert m == n
             y = np.zeros((m, n), dtype=self.dtype)
             for a, b in zip(self._mps_bottom, self._mps_top):
-                y += b.T @ a
+                y += b.conj().T @ a
         else:
             assert x.shape == (m, n)
             y = np.zeros((m, n), dtype=np.result_type(self.dtype, x.dtype))
             for a, b in zip(self._mps_bottom, self._mps_top):
-                y += (b.T @ x) @ a
+                y += (b.conj().T @ x) @ a
 
         return y
 
@@ -84,12 +84,12 @@ class TransferOperator:
             assert m == n
             y = np.zeros((m, n), dtype=self.dtype)
             for a, b in zip(self._mps_bottom, self._mps_top):
-                y += a @ b.T
+                y += a @ b.conj().T
         else:
             assert x.shape == (m, n)
             y = np.zeros((m, n), dtype=np.result_type(self.dtype, x.dtype))
             for a, b in zip(self._mps_bottom, self._mps_top):
-                y += (a @ x) @ b.T
+                y += (a @ x) @ b.conj().T
 
         return y
 
