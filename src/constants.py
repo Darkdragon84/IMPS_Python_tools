@@ -1,5 +1,5 @@
 import numpy as np
 
-RDTYPES = [np.float64, np.float32]
-CDTYPES = [np.complex128, np.complex64]
+RDTYPES = [np.dtype("float64"), np.dtype("float32")]
+CDTYPES = [np.dtype("complex128"), np.dtype("complex64")]
 DTYPES = RDTYPES + CDTYPES

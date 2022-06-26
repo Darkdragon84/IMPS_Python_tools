@@ -2,7 +2,6 @@ from collections.abc import Sequence
 from typing import TypeVar, Optional
 
 import numpy as np
-from numpy.typing import DTypeLike
 
 from src.math_utilities import qr_pos
 from src.utilities import DimsType, MatType
@@ -57,7 +56,7 @@ class IMPS(Sequence[MatType]):
         return len(self.dims)
 
     @property
-    def dtype(self) -> DTypeLike:
+    def dtype(self) -> np.dtype:
         return self._dtype
 
     def to_full_matrix(self, axis: int) -> MatType:
@@ -69,14 +68,16 @@ class IMPS(Sequence[MatType]):
         return cls(np.split(mat, dim_phys, axis))
 
     @classmethod
-    def random_mps(cls, dim_phys: int, dims: DimsType, dtype: Optional[DTypeLike] = None, seed: Optional[int] = None):
+    def random_mps(cls, dim_phys: int, dims: DimsType, dtype: Optional[np.dtype] = None, seed: Optional[int] = None):
         if seed is not None:
             np.random.seed(seed)
+        nrm_fac = np.sqrt(dim_phys*np.sqrt(np.prod(dims))).astype(dtype)
+
         dtype = dtype or np.float
-        return cls([np.random.randn(*dims).astype(dtype) for _ in range(dim_phys)])
+        return cls([np.random.randn(*dims).astype(dtype) / nrm_fac for _ in range(dim_phys)])
 
     @classmethod
-    def random_left_ortho_mps(cls, dim_phys: int, dims: DimsType, dtype: Optional[DTypeLike] = None,
+    def random_left_ortho_mps(cls, dim_phys: int, dims: DimsType, dtype: Optional[np.dtype] = None,
                               seed: Optional[int] = None):
         if seed is not None:
             np.random.seed(seed)
@@ -85,14 +86,14 @@ class IMPS(Sequence[MatType]):
         return cls.from_full_matrix(q, dim_phys, 0)
 
     @classmethod
-    def random_right_ortho_mps(cls, dim_phys: int, dims: DimsType, dtype: Optional[DTypeLike] = None,
+    def random_right_ortho_mps(cls, dim_phys: int, dims: DimsType, dtype: Optional[np.dtype] = None,
                                seed: Optional[int] = None):
         if seed is not None:
             np.random.seed(seed)
         dtype = dtype or np.float
         q, _ = qr_pos(np.random.randn(dim_phys * dims[-1], *dims[:-1]).astype(dtype))
         return cls.from_full_matrix(q.T, dim_phys, 1)
-
+    
     def __mul__(self, scalar: np.ScalarType):
         return self.mult_with_scalar(scalar)
 

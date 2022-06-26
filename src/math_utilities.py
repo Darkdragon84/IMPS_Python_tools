@@ -4,7 +4,7 @@ import numpy
 import numpy as np
 from numpy.linalg import qr
 
-from src.utilities import MatType
+from src.utilities import MatType, Direction
 
 
 def inf_norm(x) -> float:
@@ -53,15 +53,23 @@ def add_scalar_times_matrix(x: np.ndarray, y: np.ndarray, a: np.ScalarType):
         x += a * y
 
 
-def qr_pos(x: MatType) -> Tuple[np.ndarray, np.ndarray]:
+def qr_pos(x: MatType, direction: Direction = Direction.LEFT) -> Tuple[np.ndarray, np.ndarray]:
     """
     computes a unique QR factorization, where the diagonals of R are positive
     :param x:
+    :param direction:
     :return:
     """
     if np.iscomplexobj(x):
         raise NotImplementedError
+
+    if direction == Direction.RIGHT:
+        x = x.T
     q, r = qr(x)
-    # TODO make this work for complex numbers
+    # TODO make the following work for complex numbers
     transf = np.diag(np.sign(np.diag(r)))
-    return q @ transf, transf @ r
+
+    q, r = q @ transf, transf @ r
+    if direction == Direction.RIGHT:
+        q, r = q.T, r.T
+    return q, r

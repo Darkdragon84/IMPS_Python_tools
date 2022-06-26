@@ -11,8 +11,8 @@ def main():
     mA = 20
     mB = 20
     # dtype = numpy.complex128
-    # dtype = numpy.float64
-    dtype = numpy.float32
+    dtype = numpy.float64
+    # dtype = numpy.float32
 
     A = IMPS.random_left_ortho_mps(d, (mA, mA), dtype=dtype)
     B = IMPS.random_right_ortho_mps(d, (mB, mB), dtype=dtype)

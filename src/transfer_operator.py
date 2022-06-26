@@ -102,7 +102,7 @@ def transfer_op_dominant_eigs(
     v0: Optional[np.ndarray] = None,
     maxiter: Optional[int] = None,
     ncv: Optional[int] = None
-) -> Tuple[np.floating, np.ndarray]:
+) -> Tuple[np.floating, MatType]:
     """
     this function is only meant for non-mixed TM, for which the dominant eigenvalue is guaranteed to be positive real
     :param transfer_op:

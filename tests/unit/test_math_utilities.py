@@ -3,7 +3,7 @@ import numpy as np
 
 from src.constants import RDTYPES, CDTYPES
 from src.math_utilities import matrix_dot, qr_pos
-from src.utilities import dtype_precision
+from src.utilities import dtype_precision, Direction
 
 
 @pytest.mark.parametrize("dims, seed", [
@@ -28,11 +28,18 @@ def test_matrix_dot(dims, seed):
 def test_qr_pos(dims, seed, dtype):
     np.random.seed(seed)
     mat = np.random.randn(*dims).astype(dtype)
-    q, r = np.linalg.qr(mat)
-    qpos, rpos = qr_pos(mat)
+
+    # left
+    _, r = np.linalg.qr(mat)
+    qpos, rpos = qr_pos(mat, Direction.LEFT)
     assert np.array_equal(np.abs(np.diag(r)), np.diag(rpos))
     assert np.allclose(qpos @ rpos, mat, atol=10 * dtype_precision(dtype))
 
+    # right
+    _, l = np.linalg.qr(mat.T)
+    upos, lpos = qr_pos(mat, Direction.RIGHT)
+    assert np.array_equal(np.abs(np.diag(l)), np.diag(lpos))
+    assert np.allclose(lpos @ upos, mat, atol=10 * dtype_precision(dtype))
 
 @pytest.mark.parametrize("dtype", CDTYPES)
 def test_qr_pos_fails(dtype):
