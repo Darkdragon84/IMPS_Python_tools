@@ -1,9 +1,11 @@
 from collections.abc import Sequence
+from functools import singledispatchmethod
 from typing import TypeVar, Optional
 
 import numpy as np
 
 from src.math_utilities import qr_pos
+from src.operators import Operator
 from src.utilities import DimsType, MatType
 
 
@@ -93,12 +95,14 @@ class IMPS(Sequence[MatType]):
         dtype = dtype or np.float
         q, _ = qr_pos(np.random.randn(dim_phys * dims[-1], *dims[:-1]).astype(dtype))
         return cls.from_full_matrix(q.T, dim_phys, 1)
-    
+
+    @singledispatchmethod
     def __mul__(self, scalar: np.ScalarType):
         return self.mult_with_scalar(scalar)
 
-    def __rmul__(self, scalar: np.ScalarType):
-        return self.mult_with_scalar(scalar)
+    @__mul__.register(Operator)
+    def __rmul__(self, operator: Operator):
+        pass
 
     def __truediv__(self, scalar: np.ScalarType):
         return self.div_by_scalar(scalar)
