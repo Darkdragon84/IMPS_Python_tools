@@ -7,7 +7,7 @@ from src.math_utilities import qr_pos
 from src.utilities import DimsType, MatType
 
 
-class IMPS(Sequence[MatType]):
+class MPSMat(Sequence[MatType]):
     # as per https://stackoverflow.com/questions/40252765/overriding-other-rmul-with-your-classs-mul
     __array_priority__ = 10000
 
@@ -25,7 +25,7 @@ class IMPS(Sequence[MatType]):
     def __repr__(self):
         return f"{self.__class__.__name__}(dim_phys={self.dim_phys}, dims={self.dims}, dtype={self.dtype})"
 
-    def __eq__(self, other: "IMPS"):
+    def __eq__(self, other: "MPSMat"):
         return all([
             type(self) == type(other),
             self.dim_phys == other.dim_phys,
@@ -143,4 +143,4 @@ class IMPS(Sequence[MatType]):
         return self.__class__([x @ mat for mat in self._matrices])
 
 
-MpsType = TypeVar("MpsType", bound=IMPS)
+MpsType = TypeVar("MpsType", bound=MPSMat)

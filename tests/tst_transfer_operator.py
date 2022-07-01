@@ -1,7 +1,7 @@
 import numpy
 
 from src.math_utilities import inf_norm
-from src.mps import IMPS
+from src.mps import MPSMat
 from src.transfer_operator import TransferOperator, transfer_op_dominant_eigs, transfer_op_eigs
 from src.utilities import Direction, Which
 
@@ -14,8 +14,8 @@ def main():
     dtype = numpy.float64
     # dtype = numpy.float32
 
-    A = IMPS.random_left_ortho_mps(d, (mA, mA), dtype=dtype)
-    B = IMPS.random_right_ortho_mps(d, (mB, mB), dtype=dtype)
+    A = MPSMat.random_left_ortho_mps(d, (mA, mA), dtype=dtype)
+    B = MPSMat.random_right_ortho_mps(d, (mB, mB), dtype=dtype)
 
     TMA = TransferOperator(A)
     TMB = TransferOperator(B)
@@ -36,7 +36,7 @@ def main():
     print(f"dominant EV={eB}, EV.dtype={eB.dtype}, LB.dtype={LB.dtype}")
     print(f"LB left eigenmat: {inf_norm(TMB.mult_left(LB) - eB * LB)}")
 
-    M = IMPS.random_mps(d, (mA, mA), dtype=dtype)
+    M = MPSMat.random_mps(d, (mA, mA), dtype=dtype)
     TM = TransferOperator(M)
     eL, LM = transfer_op_dominant_eigs(TM, Direction.LEFT)
     eR, RM = transfer_op_dominant_eigs(TM, Direction.RIGHT)

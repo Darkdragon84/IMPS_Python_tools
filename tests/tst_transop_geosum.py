@@ -2,7 +2,7 @@ import numpy
 import numpy as np
 
 from src.math_utilities import matrix_dot
-from src.mps import IMPS
+from src.mps import MPSMat
 from src.transfer_operator import transfer_op_dominant_eigs, TransferOperator, transfer_op_geometric_sum
 from src.utilities import Direction
 from numpy.linalg import norm
@@ -16,7 +16,7 @@ def main():
     dtype = numpy.float64
     # dtype = numpy.float32
 
-    AL = IMPS.random_left_ortho_mps(d, (m, m), dtype=dtype)
+    AL = MPSMat.random_left_ortho_mps(d, (m, m), dtype=dtype)
     TMAL = TransferOperator(AL)
 
     eR, R = transfer_op_dominant_eigs(TMAL, Direction.RIGHT)
@@ -30,7 +30,7 @@ def main():
     print(f"Tr(yl*R)/|yl||R|={matrix_dot(yl, R) / (norm(yl) * norm(R)):2.6e}")
     print(f"system of eqns. fulfilled to rel. prec {norm(res_l) / norm(x_projl):2.6e}")
 
-    BR = IMPS.random_right_ortho_mps(d, (m, m), dtype=dtype)
+    BR = MPSMat.random_right_ortho_mps(d, (m, m), dtype=dtype)
     TMBR = TransferOperator(BR)
 
     eL, L = transfer_op_dominant_eigs(TMBR, Direction.LEFT)

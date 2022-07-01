@@ -6,7 +6,7 @@ from typing import Iterable, TypeVar, Tuple, Iterator
 import numpy as np
 from scipy.sparse import csr_matrix
 
-from src.mps import IMPS
+from src.mps import MPSMat
 
 VT = TypeVar("VT")
 T = TypeVar("T")
@@ -55,8 +55,8 @@ def op_mult(right: T, left: Operator) -> T:
     raise NotImplementedError
 
 
-@op_mult.register(IMPS)
-def _mult_op_mps(right: IMPS, left: Operator) -> IMPS:
+@op_mult.register(MPSMat)
+def _mult_op_mps(right: MPSMat, left: Operator) -> MPSMat:
     assert right.dim_phys == left.dim_phys, f"mps must be of same physical dimension ({left.dim_phys}), but has {right.dim_phys}"
     matrices = [
         sum([val * right[j] for j, val in left.row_iter(i)])

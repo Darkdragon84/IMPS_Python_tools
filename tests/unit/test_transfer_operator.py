@@ -5,7 +5,7 @@ from typing import Tuple
 import numpy as np
 import pytest
 
-from src.mps import IMPS
+from src.mps import MPSMat
 from src.transfer_operator import TransferOperator
 from src.utilities import MatType
 from tests.unit.test_data import TRANSOP_TEST_SETTINGS, TRANSOP_EXPECTED_LEFT, TRANSOP_EXPECTED_RIGHT
@@ -20,10 +20,10 @@ def create_test_matrix(dims: Tuple[int, int], dtype: np.dtype = np.dtype(np.floa
 
 
 @lru_cache
-def create_test_mps(dim_phys: int, dims: Tuple[int, int], dtype: np.dtype = np.dtype(np.float64)) -> IMPS:
+def create_test_mps(dim_phys: int, dims: Tuple[int, int], dtype: np.dtype = np.dtype(np.float64)) -> MPSMat:
     dim1, dim2 = dims
     full_mat = create_test_matrix((dim_phys * dim1, dim2), dtype)
-    return IMPS.from_full_matrix(full_mat, dim_phys, 0)
+    return MPSMat.from_full_matrix(full_mat, dim_phys, 0)
 
 
 class TestTransferOperator:

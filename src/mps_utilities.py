@@ -3,7 +3,7 @@ import warnings
 import numpy as np
 
 from src.math_utilities import qr_pos, inf_norm
-from src.mps import MpsType, IMPS
+from src.mps import MpsType, MPSMat
 from src.transfer_operator import TransferOperator, transfer_op_dominant_eigs
 from src.utilities import Direction, MatType, DirectionError, dtype_precision, DimsType
 
@@ -35,7 +35,7 @@ def is_gauged(mps: MpsType, reduced_dm: MatType, direction: Direction):
 
 def random_left_right_ortho_mps_pair(dim_phys: int, dims: DimsType, dtype: Optional[np.dtype] = None,
                                      seed: Optional[int] = None):
-    mps_l = IMPS.random_left_ortho_mps(dim_phys, dims, dtype, seed)
+    mps_l = MPSMat.random_left_ortho_mps(dim_phys, dims, dtype, seed)
     _, r = transfer_op_dominant_eigs(TransferOperator(mps_l), Direction.RIGHT)
 
     # decompose R = C*C.T, which is achieved exactly by a cholesky decomposition
