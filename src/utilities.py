@@ -36,3 +36,14 @@ def dtype_precision(dt: np.dtype) -> Optional[float]:
     if issubclass(dt.type, numbers.Complex):
         return float(f"1e-{dt.itemsize}")
     return None
+
+
+def index_to_tuple(index: int, base: int, n_digits: int) -> Tuple[int, ...]:
+    repr = f"{np.base_repr(index, base):>0{n_digits}}" if base > 2 else np.binary_repr(index, n_digits)
+    if len(repr) > n_digits:
+        raise ValueError(f"integer {index} cannot be represented by a length-{n_digits} base-{base} tuple.")
+    return tuple(int(x) for x in repr)
+
+
+def tuple_to_index(indices: Tuple[int, ...], base: int):
+    return int("".join(map(str, indices)), base)
