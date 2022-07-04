@@ -4,7 +4,7 @@ from itertools import product
 from typing import Iterable, TypeVar, Tuple, Iterator
 
 import numpy as np
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_array
 
 from src.mps import MPSMat
 from src.utilities import tuple_to_index
@@ -18,20 +18,31 @@ class Operator:
     n_sites: int
     dim_phys: int
     dtype: VT = np.float64
-    matrix: csr_matrix = None
+    matrix: csr_array = None
 
     def __post_init__(self):
-        self.matrix = csr_matrix((self.dim, self.dim), dtype=self.dtype) if self.matrix is None else self.matrix
+        if self.matrix is None:
+            self.matrix = csr_array((self.dim, self.dim), dtype=self.dtype)
+        else:
+            self.dtype = self.matrix.dtype
 
     @classmethod
     def from_data(cls, data: Iterable[VT], indices: Iterable[Tuple[int, int]], n_sites: int, dim_phys: int):
         dim = dim_phys ** n_sites
-        matrix = csr_matrix((data, zip(*indices)), shape=(dim, dim))
+        matrix = csr_array((data, zip(*indices)), shape=(dim, dim))
         return cls(n_sites, dim_phys, matrix.dtype, matrix)
 
     @property
     def dim(self):
         return self.dim_phys ** self.n_sites
+
+    def __eq__(self, other: "Operator") -> bool:
+        return all([
+            isinstance(other, Operator),
+            self.n_sites == other.n_sites,
+            self.dim_phys == other.dim_phys,
+            (self.matrix != other.matrix).nnz == 0
+        ])
 
     def __getitem__(self, inds):
         return self.matrix[inds]
@@ -40,11 +51,23 @@ class Operator:
         yield from zip(self.matrix.indices[self.matrix.indptr[row]: self.matrix.indptr[row + 1]],
                        self.matrix.data[self.matrix.indptr[row]: self.matrix.indptr[row + 1]])
 
+    def __neg__(self):
+        return self.__class__(self.n_sites, self.dim_phys, matrix=-self.matrix)  # type: ignore
+
+    def __add__(self, other: "Operator") -> "Operator":
+        assert self.dim_phys == other.dim_phys
+        assert self.n_sites == other.n_sites
+        return self.__class__(self.n_sites, self.dim_phys, matrix=self.matrix + other.matrix)  # type: ignore
+
+    def __sub__(self, other: "Operator") -> "Operator":
+        assert self.dim_phys == other.dim_phys
+        assert self.n_sites == other.n_sites
+        return self.__class__(self.n_sites, self.dim_phys, matrix=self.matrix - other.matrix)  # type: ignore
+
     def __matmul__(self, other: "Operator") -> "Operator":
         assert self.dim_phys == other.dim_phys
         assert self.n_sites == other.n_sites
-        matrix = self.matrix * other.matrix
-        return self.__class__(self.n_sites, self.dim_phys, matrix.dtype, matrix)  # type: ignore
+        return self.__class__(self.n_sites, self.dim_phys, matrix=self.matrix @ other.matrix)  # type: ignore
 
     def __mul__(self, other: T):
         # singledispatchmethod can't be used here bc we can't register "Operator" yet.

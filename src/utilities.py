@@ -5,6 +5,8 @@ from typing import TypeVar, Tuple, Optional
 import numpy as np
 
 VT = TypeVar("VT", bound=np.floating)
+OT = TypeVar("OT")
+
 DimsType = Tuple[int, ...]
 MatType = np.ndarray[Tuple[int, int], VT]
 
@@ -47,3 +49,7 @@ def index_to_tuple(index: int, base: int, n_digits: int) -> Tuple[int, ...]:
 
 def tuple_to_index(indices: Tuple[int, ...], base: int):
     return int("".join(map(str, indices)), base)
+
+
+def commutator(o1: OT, o2: OT) -> OT:
+    return o1 @ o2 - o2 @ o1
