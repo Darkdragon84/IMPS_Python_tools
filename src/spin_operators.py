@@ -2,8 +2,6 @@ from dataclasses import dataclass, field
 from itertools import pairwise
 from math import sqrt
 
-import numpy as np
-
 from src.operators import Operator
 
 
@@ -23,20 +21,15 @@ class SU2Generators:
 
         self.spin = (self.dim_phys - 1) / 2.
 
-        diag_inds = list(zip(range(self.dim_phys), range(self.dim_phys)))
-        upper_off_diag_inds = list(pairwise(range(self.dim_phys)))
-        lower_off_diag_inds = [(i2, i1) for i1, i2 in upper_off_diag_inds]
+        off_diag_inds = list(pairwise(range(self.dim_phys)))
 
         mvec = [m - self.spin for m in range(self.dim_phys)]
-        xy_offdiag = np.asarray([sqrt(self.spin*(self.spin + 1) - m1*m2) / 2. for m1, m2 in pairwise(mvec)])
+        xy_offdiag = [sqrt(self.spin*(self.spin + 1) - m1*m2) for m1, m2 in pairwise(mvec)]
 
-        self.sz = Operator.from_data(list(reversed(mvec)), diag_inds, 1, self.dim_phys)
-        self.sx = Operator.from_data(
-            np.concatenate((xy_offdiag, xy_offdiag)), upper_off_diag_inds + lower_off_diag_inds, 1, self.dim_phys
-        )
-        self.isy = Operator.from_data(
-            np.concatenate((xy_offdiag, -xy_offdiag)), upper_off_diag_inds + lower_off_diag_inds, 1, self.dim_phys
-        )
+        data, inds = zip(*[(m, (i, i)) for i, m in enumerate(reversed(mvec)) if m != 0])
+        self.sz = Operator.from_data(data, inds, 1, self.dim_phys)
+        self.sp = Operator.from_data(xy_offdiag, off_diag_inds, 1, self.dim_phys)
+        self.sm = Operator(1, self.dim_phys, matrix=self.sp.matrix.T)
 
-        self.sp = self.sx + self.isy
-        self.sm = self.sx - self.isy
+        self.sx = (self.sp + self.sm) / 2
+        self.isy = (self.sp - self.sm) / 2

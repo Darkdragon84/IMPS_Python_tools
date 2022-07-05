@@ -1,5 +1,6 @@
 import enum
 import numbers
+from abc import abstractmethod, ABC
 from typing import TypeVar, Tuple, Optional
 
 import numpy as np
@@ -9,6 +10,36 @@ OT = TypeVar("OT")
 
 DimsType = Tuple[int, ...]
 MatType = np.ndarray[Tuple[int, int], VT]
+
+
+class HasMatOps(ABC):
+    @abstractmethod
+    def __eq__(self, other: "HasMatOps") -> "HasMatOps":
+        raise NotImplementedError
+
+    @abstractmethod
+    def __add__(self, other: "HasMatOps") -> "HasMatOps":
+        raise NotImplementedError
+
+    @abstractmethod
+    def __sub__(self, other: "HasMatOps") -> "HasMatOps":
+        raise NotImplementedError
+
+    @abstractmethod
+    def __neg__(self) -> "HasMatOps":
+        raise NotImplementedError
+
+    @abstractmethod
+    def __matmul__(self, other: "HasMatOps") -> "HasMatOps":
+        raise NotImplementedError
+
+    @abstractmethod
+    def __mul__(self, other: VT) -> "HasMatOps":
+        raise NotImplementedError
+
+    @abstractmethod
+    def __truediv__(self, other) -> "HasMatOps":
+        raise NotImplementedError
 
 
 class Direction(enum.Enum):
@@ -34,7 +65,7 @@ class Which(enum.Enum):
 
 def dtype_precision(dt: np.dtype) -> Optional[float]:
     if issubclass(dt.type, numbers.Real):
-        return float(f"1e-{2*dt.itemsize}")
+        return float(f"1e-{2 * dt.itemsize}")
     if issubclass(dt.type, numbers.Complex):
         return float(f"1e-{dt.itemsize}")
     return None
@@ -51,5 +82,5 @@ def tuple_to_index(indices: Tuple[int, ...], base: int):
     return int("".join(map(str, indices)), base)
 
 
-def commutator(o1: OT, o2: OT) -> OT:
+def commutator(o1: HasMatOps, o2: HasMatOps) -> OT:
     return o1 @ o2 - o2 @ o1
